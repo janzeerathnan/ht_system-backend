@@ -27,10 +27,11 @@ import {
   Settings,
   Logout,
   AccountCircle,
-  Assignment
+  CalendarToday
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { logout } from '../api';
+import { logout, getUnreadNotificationCount } from '../api';
+import IcstLogo from '../assets/ICST.png';
 
 const EmpNav = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -39,6 +40,7 @@ const EmpNav = () => {
   const [employee, setEmployee] = useState({});
   const [roleName, setRoleName] = useState('');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -52,6 +54,18 @@ const EmpNav = () => {
 
       if (!token) {
         navigate('/');
+        return;
+      }
+
+      // Ensure this is for regular employees only
+      if (role !== 'employee') {
+        if (role === 'admin' || role === 'hr') {
+          navigate('/overview');
+        } else if (role === 'rm') {
+          navigate('/employeerm');
+        } else {
+          navigate('/employee');
+        }
         return;
       }
 
@@ -70,6 +84,26 @@ const EmpNav = () => {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [navigate]);
+
+  useEffect(() => {
+    // Fetch unread notification count
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await getUnreadNotificationCount();
+        if (response.success) {
+          setUnreadCount(response.data.count);
+        }
+      } catch (error) {
+        console.error('Error fetching unread notification count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+    
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -112,103 +146,58 @@ const EmpNav = () => {
   };
 
   const handleNavigation = (path) => {
-    // Check if user has access to the requested path
-    const hasAccess = checkPathAccess(path);
-    if (hasAccess) {
-      navigate(path);
-      setMobileOpen(false);
-    } else {
-      // Redirect to appropriate dashboard based on role
-      if (roleName === 'admin' || roleName === 'hr') {
-        navigate('/overview');
-      } else {
-        navigate('/employee');
-      }
+    navigate(path);
+    setMobileOpen(false);
+  };
+
+  // Navigation items for regular employees
+  const navigationItems = [
+    {
+      text: 'Dashboard',
+      icon: <Dashboard />,
+      path: '/employee'
+    },
+    {
+      text: 'Leave Apply',
+      icon: <Event />,
+      path: '/leave-apply'
+    },
+    {
+      text: 'Notifications',
+      icon: <Notifications />,
+      path: '/notifications'
+    },
+    {
+      text: 'Leave Calendar',
+      icon: <CalendarToday />,
+      path: '/calendar'
+    },
+    {
+      text: 'Settings',
+      icon: <Settings />,
+      path: '/settings'
     }
-  };
-
-  // Check if user has access to a specific path
-  const checkPathAccess = (path) => {
-    switch (path) {
-      case '/employee':
-        return roleName === 'employee' || roleName === 'rm';
-      case '/overview':
-        return roleName === 'admin' || roleName === 'hr';
-      case '/leave-apply':
-      case '/notifications':
-      case '/profile':
-      case '/settings':
-        return true; // These are accessible to all authenticated users
-      default:
-        return false;
-    }
-  };
-
-  // Navigation items based on role
-  const getNavigationItems = () => {
-    const baseItems = [
-      {
-        text: 'Dashboard',
-        icon: <Dashboard />,
-        path: '/employee'
-      },
-      {
-        text: 'Leave Apply',
-        icon: <Event />,
-        path: '/leave-apply'
-      },
-      {
-        text: 'Notifications',
-        icon: <Notifications />,
-        path: '/notifications'
-      },
-      {
-        text: 'My Profile',
-        icon: <Person />,
-        path: '/profile'
-      },
-      {
-        text: 'Settings',
-        icon: <Settings />,
-        path: '/settings'
-      }
-    ];
-
-    return baseItems;
-  };
-
-  const navigationItems = getNavigationItems();
+  ];
 
   const drawer = (
     <Box>
       <Box sx={{ 
         p: 2, 
         display: 'flex', 
+        flexDirection: 'column',
         alignItems: 'center', 
-        gap: 2,
-        borderBottom: '1px solid #e0e0e0'
+        borderBottom: '1px solid #e0e0e0',
+        mb: 2
       }}>
-        <Avatar sx={{ 
-          bgcolor: '#941936',
-          width: 40,
-          height: 40
-        }}>
-          {employee?.FirstName?.charAt(0) || 'U'}
-        </Avatar>
-        <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#333' }}>
-            {employee?.FirstName} {employee?.LastName}
-          </Typography>
-          <Chip 
-            label={roleName === 'rm' ? 'Reporting Manager' : 'Employee'} 
-            size="small" 
-            sx={{ 
-              bgcolor: roleName === 'rm' ? '#2196f3' : '#4caf50',
-              color: 'white',
-              fontSize: '0.7rem'
-            }}
-          />
-        </Box>
+        <img 
+          src={IcstLogo} 
+          alt="ICST Logo" 
+          style={{ 
+            width: '80%',
+            height: 'auto',
+            marginBottom: '1rem'
+          }} 
+        />
       </Box>
       
       <List sx={{ pt: 1 }}>
@@ -262,8 +251,10 @@ const EmpNav = () => {
         position="fixed" 
         sx={{ 
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          bgcolor: '#941936',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          bgcolor: 'rgba(183, 24, 69, 0.9)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          ml: { sm: '20px' },
+          width: { sm: `calc(100% - 250px)` }
         }}
       >
         <Toolbar>
@@ -278,7 +269,7 @@ const EmpNav = () => {
           </IconButton>
           
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {roleName === 'rm' ? 'Reporting Manager Portal' : 'Employee Portal'}
+            
           </Typography>
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -286,7 +277,7 @@ const EmpNav = () => {
               color="inherit"
               onClick={() => handleNavigation('/notifications')}
             >
-              <Badge badgeContent={3} color="error">
+              <Badge badgeContent={unreadCount} color="error">
                 <Notifications />
               </Badge>
             </IconButton>
@@ -380,12 +371,7 @@ const EmpNav = () => {
           }
         }}
       >
-        <MenuItem onClick={() => { handleNavigation('/profile'); handleProfileMenuClose(); }}>
-          <ListItemIcon>
-            <Person fontSize="small" />
-          </ListItemIcon>
-          Profile
-        </MenuItem>
+
         <MenuItem onClick={() => { handleNavigation('/settings'); handleProfileMenuClose(); }}>
           <ListItemIcon>
             <Settings fontSize="small" />

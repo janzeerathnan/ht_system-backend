@@ -347,6 +347,8 @@ const People = () => {
     const [loading, setLoading] = useState(true);
     const [deleteDialog, setDeleteDialog] = useState({ open: false, employee: null });
 
+    const dashboardName = 'People';
+
     // Fetch employees data
     const fetchEmployees = async () => {
         try {
@@ -379,6 +381,7 @@ const People = () => {
     useEffect(() => {
         fetchEmployees();
         fetchDropdownData();
+        document.title = 'ICST | People';
     }, []);
 
     const handleAddClick = () => navigate('/onboard');
@@ -462,8 +465,8 @@ const People = () => {
         <AdminNav />
         <div className="main-content">
             <Container maxWidth="xl">
-                <Typography variant="h4" gutterBottom fontWeight={600} sx={{ mb: 3 }}>
-                    People Directory
+                <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: '#941936', mb: 4, textAlign: 'center' }}>
+                    People
                 </Typography>
 
                 <FiltersBar

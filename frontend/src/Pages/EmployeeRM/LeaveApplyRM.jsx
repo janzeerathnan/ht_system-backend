@@ -23,6 +23,7 @@ import {
   getLeaveTypesForRequest, 
   submitLeaveRequest 
 } from '../../api';
+import { useToast } from '../../components/ToastProvider';
 
 const LeaveApplyRM = () => {
   const [leaveForm, setLeaveForm] = useState({
@@ -36,12 +37,39 @@ const LeaveApplyRM = () => {
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
   const [document, setDocument] = useState(null);
   const [errors, setErrors] = useState({});
+  const [employee, setEmployee] = useState({});
+  const { showToast } = useToast();
+  const [leaveDayType, setLeaveDayType] = useState('full');
+  const dashboardName = 'Leave Application RM';
 
   useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('token');
+      const employeeData = JSON.parse(localStorage.getItem('employee') || '{}');
+
+      if (!token) {
+        window.location.href = '/';
+        return;
+      }
+
+      setEmployee(employeeData);
+    };
+
+    checkAuth();
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.document !== 'undefined' &&
+      window.document &&
+      typeof window.document.title !== 'undefined'
+    ) {
+      window.document.title = 'ICST | Leave Application RM';
+    }
   }, []);
 
   const fetchData = async () => {
@@ -60,10 +88,7 @@ const LeaveApplyRM = () => {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      setMessage({
-        type: 'error',
-        text: 'Failed to load form data. Please refresh the page.'
-      });
+      showToast('Failed to load form data. Please refresh the page.', 'error');
     }
   };
 
@@ -102,7 +127,6 @@ const LeaveApplyRM = () => {
     }
 
     setLoading(true);
-    setMessage({ type: '', text: '' });
     
     try {
       const formData = new FormData();
@@ -112,6 +136,7 @@ const LeaveApplyRM = () => {
       formData.append('EndDate', leaveForm.EndDate);
       formData.append('Reason', leaveForm.Reason);
       formData.append('Description', leaveForm.Description || '');
+      formData.append('leave_day_type', leaveDayType);
       
       if (document) {
         formData.append('document', document);
@@ -120,10 +145,7 @@ const LeaveApplyRM = () => {
       const response = await submitLeaveRequest(formData);
       
       if (response.success) {
-        setMessage({
-          type: 'success',
-          text: 'Leave application submitted successfully!'
-        });
+        showToast('Leave application submitted successfully!', 'success');
         
         // Reset form
         setLeaveForm({
@@ -137,16 +159,10 @@ const LeaveApplyRM = () => {
         setDocument(null);
         setErrors({});
       } else {
-        setMessage({
-          type: 'error',
-          text: response.message || 'Failed to submit leave application.'
-        });
+        showToast(response.message || 'Failed to submit leave application.', 'error');
       }
     } catch (error) {
-      setMessage({
-        type: 'error',
-        text: 'Failed to submit leave application. Please try again.'
-      });
+      showToast('Failed to submit leave application. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -172,25 +188,18 @@ const LeaveApplyRM = () => {
     if (file) {
       // Validate file size (2MB limit)
       if (file.size > 2 * 1024 * 1024) {
-        setMessage({
-          type: 'error',
-          text: 'File size must be less than 2MB'
-        });
+        showToast('File size must be less than 2MB', 'error');
         return;
       }
       
       // Validate file type
       const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/jpg', 'image/png'];
       if (!allowedTypes.includes(file.type)) {
-        setMessage({
-          type: 'error',
-          text: 'Please upload a valid file (PDF, DOC, DOCX, JPG, PNG)'
-        });
+        showToast('Please upload a valid file (PDF, DOC, DOCX, JPG, PNG)', 'error');
         return;
       }
       
       setDocument(file);
-      setMessage({ type: '', text: '' });
     }
   };
 
@@ -214,21 +223,15 @@ const LeaveApplyRM = () => {
           flexGrow: 1,
           p: 3,
           mt: 8,
-          ml: { sm: '250px' }
+          ml: { sm: '10px' }
         }}
       >
-        <Typography variant="h4" gutterBottom sx={{ color: '#333', mb: 3 }}>
-          Leave Application
+        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: '#941936', mb: 4, textAlign: 'center' }}>
+          Leave Application RM
         </Typography>
 
-        {message.text && (
-          <Alert severity={message.type} sx={{ mb: 3 }}>
-            {message.text}
-          </Alert>
-        )}
-
         <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
+          <Grid sx={{ width: { xs: '100%', md: '66.66%' } }}>
             <Paper sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom sx={{ color: '#941936', mb: 3 }}>
                 Apply for Leave
@@ -236,7 +239,7 @@ const LeaveApplyRM = () => {
 
               <form onSubmit={handleSubmit}>
                 <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
                     <FormControl fullWidth error={!!errors.LeaveTypeID}>
                       <InputLabel>Leave Type</InputLabel>
                       <Select
@@ -257,7 +260,7 @@ const LeaveApplyRM = () => {
                     </FormControl>
                   </Grid>
 
-                  <Grid item xs={12} md={6}>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
                     <FormControl fullWidth>
                       <InputLabel>Cover Up Employee (Optional)</InputLabel>
                       <Select
@@ -266,7 +269,9 @@ const LeaveApplyRM = () => {
                         onChange={(e) => handleInputChange('CoverUpEMPID', e.target.value)}
                       >
                         <MenuItem value="">None</MenuItem>
-                        {employees.map((emp) => (
+                        {employees
+                          .filter(emp => emp.EMPID !== employee?.EMPID)
+                          .map((emp) => (
                           <MenuItem key={emp.EMPID} value={emp.EMPID}>
                             {emp.FirstName} {emp.LastName} ({emp.role?.RoleName})
                           </MenuItem>
@@ -275,7 +280,7 @@ const LeaveApplyRM = () => {
                     </FormControl>
                   </Grid>
 
-                  <Grid item xs={12} md={6}>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
                     <TextField
                       fullWidth
                       label="Start Date"
@@ -291,7 +296,7 @@ const LeaveApplyRM = () => {
                     />
                   </Grid>
 
-                  <Grid item xs={12} md={6}>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
                     <TextField
                       fullWidth
                       label="End Date"
@@ -310,7 +315,21 @@ const LeaveApplyRM = () => {
                     />
                   </Grid>
 
-                  <Grid item xs={12}>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
+                    <FormControl fullWidth>
+                      <InputLabel>Leave Day Type</InputLabel>
+                      <Select
+                        value={leaveDayType}
+                        label="Leave Day Type"
+                        onChange={(e) => setLeaveDayType(e.target.value)}
+                      >
+                        <MenuItem value="full">Full Day</MenuItem>
+                        <MenuItem value="half">Half Day</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+
+                  <Grid sx={{ width: '100%' }}>
                     <TextField
                       fullWidth
                       label="Reason"
@@ -322,7 +341,7 @@ const LeaveApplyRM = () => {
                     />
                   </Grid>
 
-                  <Grid item xs={12}>
+                  <Grid sx={{ width: '100%' }}>
                     <TextField
                       fullWidth
                       label="Description"
@@ -334,9 +353,9 @@ const LeaveApplyRM = () => {
                     />
                   </Grid>
 
-                  <Grid item xs={12}>
+                  <Grid sx={{ width: '100%' }}>
                     <FormControl fullWidth>
-                      <InputLabel>Document (Optional)</InputLabel>
+                      <InputLabel >Document (Optional)</InputLabel>
                       <Input
                         type="file"
                         onChange={handleFileChange}
@@ -350,15 +369,17 @@ const LeaveApplyRM = () => {
                     </FormControl>
                   </Grid>
 
-                  <Grid item xs={12}>
+                  <Grid sx={{ width: '100%' }}>
                     <Button
                       type="submit"
                       variant="contained"
                       size="large"
                       disabled={loading}
                       sx={{
-                        bgcolor: '#941936',
-                        '&:hover': { bgcolor: '#7a0f2b' }
+                        background: 'linear-gradient(90deg, #a60515 0%, #941936 100%)',
+                        color: 'white',
+                        fontWeight: 600,
+                        '&:hover': { background: 'linear-gradient(90deg, #941936 0%, #a60515 100%)' }
                       }}
                     >
                       {loading ? 'Submitting...' : 'Submit Application'}
@@ -367,52 +388,6 @@ const LeaveApplyRM = () => {
                 </Grid>
               </form>
             </Paper>
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ color: '#941936' }}>
-                  Leave Summary
-                </Typography>
-                <Box sx={{ mt: 2 }}>
-                  {leaveForm.StartDate && leaveForm.EndDate && (
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                      <Typography>Total Days:</Typography>
-                      <Chip label={`${calculateDays()} days`} color="primary" size="small" />
-                    </Box>
-                  )}
-                  {leaveForm.LeaveTypeID && (
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography>Selected Leave Type:</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {leaveTypes.find(t => t.LeaveTypeID == leaveForm.LeaveTypeID)?.LeaveName}
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
-
-            <Card sx={{ mt: 2 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ color: '#941936' }}>
-                  Quick Tips
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  • Submit your leave application at least 3 days in advance
-                </Typography>
-                <Typography variant="body2">
-                  • Provide clear and detailed reasons for your leave
-                </Typography>
-                <Typography variant="body2">
-                  • Check your leave balance before applying
-                </Typography>
-                <Typography variant="body2">
-                  • Contact your manager for urgent leave requests
-                </Typography>
-              </CardContent>
-            </Card>
           </Grid>
         </Grid>
       </Box>

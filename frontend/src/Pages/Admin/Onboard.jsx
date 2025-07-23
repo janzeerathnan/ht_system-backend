@@ -4,31 +4,27 @@ import {
     Stack, Stepper, Step, StepLabel, Divider, CircularProgress
 } from '@mui/material';
 import axios from 'axios';
-
+import AdminNav from '../../navbars/AdminNav';
 import BasicInfo from './onboard/BasicInfo';
 import ContactInfo from './onboard/ContactInfo';
 import UserInfo from './onboard/UserInfo';
-import AdminNav from '../../navbars/AdminNav';
-
+import { useToast } from '../../components/ToastProvider';
 
 const steps = ['Basic Information', 'Contact Information', 'User Credentials'];
 
 const Onboard = () => {
     const [currentStep, setCurrentStep] = useState(0);
     const [loading, setLoading] = useState(false);
-    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-    
     const [form, setForm] = useState({
-        // Basic Info
-        FirstName: '', LastName: '', EmployeeID: '', Email: '', DepartmentID: '', RoleID: '', 
-        EmployeeTypeID: '', StartDate: '', ReportingManagerID: '', JobID: '', NIC: '', DateOfBirth: '',
-        // Contact Info
-        Phone: '', streetNo: '', streetLine: '', city: '', district: '', province: '', postalCode: '', phoneNumbers: [],
-        // User Info
+        FirstName: '', LastName: '', EmployeeID: '', DepartmentID: '', RoleID: '', EmployeeTypeID: '',
+        StartDate: '', ReportingManagerID: '', JobID: '', NIC: '', DateOfBirth: '',
+        Email: '', Phone: '',
+        phoneNumbers: [],
+        streetNo: '', streetLine: '', city: '', district: '', province: '', postalCode: '',
         usernameOrEmail: '', password: '', confirmPassword: ''
     });
-
     const [formErrors, setFormErrors] = useState({});
+    const { showToast } = useToast();
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -44,51 +40,44 @@ const Onboard = () => {
         const errors = {};
         if (!form.FirstName) errors.FirstName = 'First name is required';
         if (!form.LastName) errors.LastName = 'Last name is required';
+        if (!form.EmployeeID) errors.EmployeeID = 'Employee ID is required';
         if (!form.Email) errors.Email = 'Email is required';
-        else if (!/\S+@\S+\.\S+/.test(form.Email)) errors.Email = 'Please enter a valid email address';
+        if (!form.Phone) errors.Phone = 'Phone is required';
+        if (!form.NIC) errors.NIC = 'NIC is required';
+        if (!form.DateOfBirth) errors.DateOfBirth = 'Date of birth is required';
+        if (!form.StartDate) errors.StartDate = 'Start date is required';
+        if (!form.DepartmentID) errors.DepartmentID = 'Department is required';
         if (!form.RoleID) errors.RoleID = 'Role is required';
         if (!form.EmployeeTypeID) errors.EmployeeTypeID = 'Employee type is required';
-        if (!form.StartDate) errors.StartDate = 'Start date is required';
-        if (!form.JobID) errors.JobID = 'Job is required';
-        if (!form.ReportingManagerID) errors.ReportingManagerID = 'Manager is required';
-        if (!form.NIC) errors.NIC = 'NIC is required';
-        if (!form.DepartmentID) errors.DepartmentID = 'Department is required';
+        if (!form.JobID) errors.JobID = 'Job title is required';
         return errors;
     };
 
     const validateContactInfo = () => {
         const errors = {};
-        // No validation needed for dropdown fields (province, district, postalCode)
-        // as they are pre-selected from valid options
+        if (!form.streetNo) errors.streetNo = 'Street number is required';
+        if (!form.city) errors.city = 'City is required';
+        if (!form.district) errors.district = 'District is required';
+        if (!form.province) errors.province = 'Province is required';
+        if (!form.postalCode) errors.postalCode = 'Postal code is required';
         return errors;
     };
 
     const validateUserInfo = () => {
         const errors = {};
-        if (!form.usernameOrEmail) errors.usernameOrEmail = 'Username or Email is required';
+        if (!form.usernameOrEmail) errors.usernameOrEmail = 'Username/Email is required';
         if (!form.password) errors.password = 'Password is required';
-        else if (form.password.length < 6) errors.password = 'Password must be at least 6 characters';
-        if (!form.confirmPassword) errors.confirmPassword = 'Please confirm your password';
-        else if (form.password !== form.confirmPassword) errors.confirmPassword = 'Passwords do not match';
+        if (!form.confirmPassword) errors.confirmPassword = 'Confirm password is required';
+        if (form.password !== form.confirmPassword) errors.confirmPassword = 'Passwords do not match';
+        if (form.password && form.password.length < 6) errors.password = 'Password must be at least 6 characters';
         return errors;
     };
 
     const validateCurrentStep = () => {
         let errors = {};
-        
-        switch (currentStep) {
-            case 0:
-                errors = validateBasicInfo();
-                break;
-            case 1:
-                errors = validateContactInfo();
-                break;
-            case 2:
-                errors = validateUserInfo();
-                break;
-            default:
-                break;
-        }
+        if (currentStep === 0) errors = validateBasicInfo();
+        else if (currentStep === 1) errors = validateContactInfo();
+        else if (currentStep === 2) errors = validateUserInfo();
         
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
@@ -156,7 +145,7 @@ const Onboard = () => {
             const response = await axios.post('http://localhost:8000/api/onboarding', onboardingPayload);
             
             if (response.data.success) {
-                showToast('Employee onboarded successfully!');
+                showToast('Employee onboarded successfully!', 'success');
                 // console.log('Onboarding response:', response.data);
                 handleClear();
                 setCurrentStep(0);
@@ -191,10 +180,6 @@ const Onboard = () => {
             usernameOrEmail: '', password: '', confirmPassword: ''
         });
         setFormErrors({});
-    };
-
-    const showToast = (message, severity = 'success') => {
-        setSnackbar({ open: true, message, severity });
     };
 
     const initials = `${form.FirstName?.[0] || ''}${form.LastName?.[0] || ''}`.toUpperCase();
@@ -278,14 +263,6 @@ const Onboard = () => {
                         )}
                     </Box>
                 </Paper>
-
-                <Snackbar
-                    open={snackbar.open}
-                    autoHideDuration={3000}
-                    onClose={() => setSnackbar({ ...snackbar, open: false })}
-                >
-                    <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
-                </Snackbar>
             </Box>
         </div>
         </>

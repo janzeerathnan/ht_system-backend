@@ -27,7 +27,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  CircularProgress
 } from '@mui/material';
 import { 
   getLeaveTypes, 
@@ -36,6 +37,7 @@ import {
   updateLeaveType,
   getRoles
 } from '../../../api';
+import { useToast } from '../../../components/ToastProvider';
 
 const LeaveSettingsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,8 +46,8 @@ const LeaveSettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, leaveId: null, leaveName: '' });
   const [editDialog, setEditDialog] = useState({ open: false, leaveType: null });
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const deleteDialogRef = useRef(null);
+  const { showToast } = useToast();
 
   // Fetch leave types from backend
   const fetchLeaveTypes = async () => {
@@ -55,11 +57,11 @@ const LeaveSettingsPage = () => {
       if (response.success) {
         setLeaveData(response.data);
       } else {
-        showSnackbar('Failed to load leave types', 'error');
+        showToast('Failed to load leave types', 'error');
       }
     } catch (error) {
       console.error('Error fetching leave types:', error);
-      showSnackbar('Failed to load leave types', 'error');
+      showToast('Failed to load leave types', 'error');
     } finally {
       setLoading(false);
     }
@@ -67,6 +69,7 @@ const LeaveSettingsPage = () => {
 
   useEffect(() => {
     fetchLeaveTypes();
+    document.title = 'Leave Settings';
   }, []);
 
   // Focus management for delete dialog
@@ -89,13 +92,13 @@ const LeaveSettingsPage = () => {
       try {
         const response = await deleteLeaveType(deleteDialog.leaveId);
         if (response.success) {
-          showSnackbar('Leave type deleted successfully');
+          showToast('Leave type deleted successfully', 'success');
           fetchLeaveTypes(); // Refresh the list
         } else {
-          showSnackbar('Failed to delete leave type', 'error');
+          showToast('Failed to delete leave type', 'error');
         }
       } catch (error) {
-        showSnackbar('Failed to delete leave type', 'error');
+        showToast('Failed to delete leave type', 'error');
       }
     }
     setDeleteDialog({ open: false, leaveId: null, leaveName: '' });
@@ -113,13 +116,13 @@ const LeaveSettingsPage = () => {
       const response = await toggleLeaveTypeActive(id, newStatus);
       if (response.success) {
         const status = newStatus ? 'activated' : 'deactivated';
-        showSnackbar(`Leave type ${status} successfully`);
+        showToast(`Leave type ${status} successfully`, 'success');
         fetchLeaveTypes(); // Refresh the list
       } else {
-        showSnackbar('Failed to update leave type status', 'error');
+        showToast('Failed to update leave type status', 'error');
       }
     } catch (error) {
-      showSnackbar('Failed to update leave type status', 'error');
+      showToast('Failed to update leave type status', 'error');
     }
   };
 
@@ -131,29 +134,21 @@ const LeaveSettingsPage = () => {
     try {
       const response = await updateLeaveType(editDialog.leaveType.LeaveTypeID, formData);
       if (response.success) {
-        showSnackbar('Leave type updated successfully');
+        showToast('Leave type updated successfully', 'success');
         fetchLeaveTypes(); // Refresh the list
         setEditDialog({ open: false, leaveType: null });
       } else {
-        showSnackbar('Failed to update leave type', 'error');
+        showToast('Failed to update leave type', 'error');
       }
     } catch (error) {
-      showSnackbar('Failed to update leave type', 'error');
+      showToast('Failed to update leave type', 'error');
     }
   };
 
   const handleAddLeaveType = (newLeaveType) => {
     // Add the new leave type to the list
     setLeaveData(prev => [...prev, newLeaveType]);
-    showSnackbar('Leave type added successfully');
-  };
-
-  const showSnackbar = (message, severity = 'success') => {
-    setSnackbar({ open: true, message, severity });
-  };
-
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
+    showToast('Leave type added successfully', 'success');
   };
 
   const filteredData = leaveData.filter(leave =>
@@ -482,28 +477,6 @@ const LeaveSettingsPage = () => {
               </Button>
             </DialogActions>
           </Dialog>
-
-          {/* Snackbar for notifications */}
-          <Snackbar
-            open={snackbar.open}
-            autoHideDuration={3000}
-            onClose={handleCloseSnackbar}
-            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-          >
-            <Alert 
-              onClose={handleCloseSnackbar} 
-              severity={snackbar.severity} 
-              variant="filled"
-              sx={{ 
-                width: '100%',
-                '& .MuiAlert-icon': {
-                  color: 'white'
-                }
-              }}
-            >
-              {snackbar.message}
-            </Alert>
-          </Snackbar>
         </Box>
       </div>
     </>

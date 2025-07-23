@@ -58,6 +58,8 @@ const Employee = () => {
 
   const [leaveRequests, setLeaveRequests] = useState([]);
 
+  const dashboardName = 'Employee Dashboard';
+
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem('token');
@@ -70,6 +72,12 @@ const Employee = () => {
         return;
       }
 
+      // Ensure this is for regular employees only
+      if (role === 'rm') {
+        navigate('/employeerm');
+        return;
+      }
+
       setUser(userData);
       setEmployee(employeeData);
       setRoleName(role);
@@ -78,6 +86,7 @@ const Employee = () => {
     checkAuth();
     fetchData();
     window.addEventListener('storage', checkAuth);
+    document.title = 'ICST | Employee Dashboard';
     return () => window.removeEventListener('storage', checkAuth);
   }, [navigate]);
 
@@ -106,37 +115,6 @@ const Employee = () => {
     }
   };
 
-  const [upcomingHolidays, setUpcomingHolidays] = useState([
-    {
-      id: 1,
-      holidayName: 'New Year\'s Day',
-      holidayDate: '2025-01-01',
-      holidayType: 'Public Holiday',
-      description: 'New Year celebration'
-    },
-    {
-      id: 2,
-      holidayName: 'Company Annual Dinner',
-      holidayDate: '2025-12-20',
-      holidayType: 'Company Holiday',
-      description: 'Annual company celebration'
-    },
-    {
-      id: 3,
-      holidayName: 'Christmas Day',
-      holidayDate: '2025-12-25',
-      holidayType: 'Public Holiday',
-      description: 'Christmas celebration'
-    },
-    {
-      id: 4,
-      holidayName: 'Team Building Day',
-      holidayDate: '2025-08-15',
-      holidayType: 'Company Holiday',
-      description: 'Team building activities'
-    }
-  ]);
-
   const getStatusColor = (status) => {
     switch (status) {
       case 'approved':
@@ -163,6 +141,14 @@ const Employee = () => {
     }
   };
 
+  const calculateDays = (startDate, endDate) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays;
+  };
+
   return (
     <Box sx={{ display: 'flex' }}>
       <EmpNav />
@@ -171,7 +157,7 @@ const Employee = () => {
         sx={{
           flexGrow: 1,
           backgroundColor: '#f8fafc',
-          minHeight: '100vh',
+          minHeight: '90vh',
           pt: 8,
           pl: { sm: '10px' }
         }}
@@ -211,32 +197,13 @@ const Employee = () => {
                 }}>
                   Welcome back, {employee?.FirstName} {employee?.LastName}!
                 </Typography>
-                <Typography variant="div" sx={{ 
-                  color: '#64748b',
-                  fontSize: '1.1rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1
-                }}>
-                  <Chip 
-                    label={roleName === 'rm' ? 'Reporting Manager' : 'Employee'} 
-                    size="small" 
-                    sx={{ 
-                      bgcolor: roleName === 'rm' ? '#2196f3' : '#4caf50',
-                      color: 'white', 
-                      fontSize: '0.7rem',
-                      fontWeight: 600
-                    }}
-                  />
-                  Here's an overview of your leave management
-                </Typography>
               </Box>
             </Box>
           </Box>
 
           {/* Statistics Cards */}
-          <Grid container spacing={2} sx={{ mb: 5 }}>
-            <Grid sx={{ display: 'flex', width: { xs: '100%', sm: '50%', md: '25%', lg: '20%' } }}>
+          <Grid container spacing={2} sx={{ mb: 5 }} columns={5}>
+            <Grid sx={{ display: 'flex', width: '20%' }}>
               <Card sx={{ 
                 bgcolor: 'white',
                 borderRadius: 3,
@@ -252,25 +219,18 @@ const Employee = () => {
                 <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <Avatar sx={{ 
-                      bgcolor: '#3b82f6', 
+                      bgcolor: '#4caf50', 
                       width: 48, 
                       height: 48,
                       mr: 2
                     }}>
-                      <Event sx={{ fontSize: 24 }} />
+                      <CalendarToday />
                     </Avatar>
                     <Box>
-                      <Typography variant="h4" sx={{ 
-                        color: '#1e293b', 
-                        fontWeight: 700,
-                        fontSize: '2rem'
-                      }}>
-                        {leaveStats.totalLeave}
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: '#1e293b' }}>
+                        {leaveStats.totalLeave || 0}
                       </Typography>
-                      <Typography variant="body2" sx={{ 
-                        color: '#64748b',
-                        fontWeight: 500
-                      }}>
+                      <Typography variant="body2" sx={{ color: '#64748b' }}>
                         Total Leave Days
                       </Typography>
                     </Box>
@@ -279,7 +239,7 @@ const Employee = () => {
               </Card>
             </Grid>
 
-            <Grid sx={{ display: 'flex', width: { xs: '100%', sm: '50%', md: '25%', lg: '20%' } }}>
+            <Grid sx={{ display: 'flex', width: '20%' }}>
               <Card sx={{ 
                 bgcolor: 'white',
                 borderRadius: 3,
@@ -295,25 +255,18 @@ const Employee = () => {
                 <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <Avatar sx={{ 
-                      bgcolor: '#f59e0b', 
+                      bgcolor: '#2196f3', 
                       width: 48, 
                       height: 48,
                       mr: 2
                     }}>
-                      <WorkOutline sx={{ fontSize: 24 }} />
+                      <CheckCircle />
                     </Avatar>
                     <Box>
-                      <Typography variant="h4" sx={{ 
-                        color: '#1e293b', 
-                        fontWeight: 700,
-                        fontSize: '2rem'
-                      }}>
-                        {leaveStats.usedLeave}
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: '#1e293b' }}>
+                        {leaveStats.usedLeave || 0}
                       </Typography>
-                      <Typography variant="body2" sx={{ 
-                        color: '#64748b',
-                        fontWeight: 500
-                      }}>
+                      <Typography variant="body2" sx={{ color: '#64748b' }}>
                         Used Leave Days
                       </Typography>
                     </Box>
@@ -322,7 +275,7 @@ const Employee = () => {
               </Card>
             </Grid>
 
-            <Grid sx={{ display: 'flex', width: { xs: '100%', sm: '50%', md: '25%', lg: '20%' } }}>
+            <Grid sx={{ display: 'flex', width: '20%' }}>
               <Card sx={{ 
                 bgcolor: 'white',
                 borderRadius: 3,
@@ -338,26 +291,19 @@ const Employee = () => {
                 <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <Avatar sx={{ 
-                      bgcolor: '#10b981', 
+                      bgcolor: '#ff9800', 
                       width: 48, 
                       height: 48,
                       mr: 2
                     }}>
-                      <CheckCircle sx={{ fontSize: 24 }} />
+                      <Schedule />
                     </Avatar>
                     <Box>
-                      <Typography variant="h4" sx={{ 
-                        color: '#1e293b', 
-                        fontWeight: 700,
-                        fontSize: '2rem'
-                      }}>
-                        {leaveStats.acceptedLeave}
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: '#1e293b' }}>
+                        {leaveStats.pendingLeave || 0}
                       </Typography>
-                      <Typography variant="body2" sx={{ 
-                        color: '#64748b',
-                        fontWeight: 500
-                      }}>
-                        Approved Requests
+                      <Typography variant="body2" sx={{ color: '#64748b' }}>
+                        Pending Requests
                       </Typography>
                     </Box>
                   </Box>
@@ -365,7 +311,7 @@ const Employee = () => {
               </Card>
             </Grid>
 
-            <Grid sx={{ display: 'flex', width: { xs: '100%', sm: '50%', md: '25%', lg: '20%' } }}>
+            <Grid sx={{ display: 'flex', width: '20%' }}>
               <Card sx={{ 
                 bgcolor: 'white',
                 borderRadius: 3,
@@ -381,25 +327,18 @@ const Employee = () => {
                 <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <Avatar sx={{ 
-                      bgcolor: '#ef4444', 
+                      bgcolor: '#f44336', 
                       width: 48, 
                       height: 48,
                       mr: 2
                     }}>
-                      <Cancel sx={{ fontSize: 24 }} />
+                      <Cancel />
                     </Avatar>
                     <Box>
-                      <Typography variant="h4" sx={{ 
-                        color: '#1e293b', 
-                        fontWeight: 700,
-                        fontSize: '2rem'
-                      }}>
-                        {leaveStats.rejectedLeave}
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: '#1e293b' }}>
+                        {leaveStats.rejectedLeave || 0}
                       </Typography>
-                      <Typography variant="body2" sx={{ 
-                        color: '#64748b',
-                        fontWeight: 500
-                      }}>
+                      <Typography variant="body2" sx={{ color: '#64748b' }}>
                         Rejected Requests
                       </Typography>
                     </Box>
@@ -408,7 +347,7 @@ const Employee = () => {
               </Card>
             </Grid>
 
-            <Grid sx={{ display: 'flex', width: { xs: '100%', sm: '50%', md: '25%', lg: '20%' } }}>
+            <Grid sx={{ display: 'flex', width: '20%' }}>
               <Card sx={{ 
                 bgcolor: 'white',
                 borderRadius: 3,
@@ -424,26 +363,19 @@ const Employee = () => {
                 <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <Avatar sx={{ 
-                      bgcolor: '#8b5cf6', 
+                      bgcolor: '#9c27b0', 
                       width: 48, 
                       height: 48,
                       mr: 2
                     }}>
-                      <Schedule sx={{ fontSize: 24 }} />
+                      <TrendingUp />
                     </Avatar>
                     <Box>
-                      <Typography variant="h4" sx={{ 
-                        color: '#1e293b', 
-                        fontWeight: 700,
-                        fontSize: '2rem'
-                      }}>
-                        {leaveStats.pendingLeave}
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: '#1e293b' }}>
+                        {(leaveStats.totalLeave || 0) - (leaveStats.usedLeave || 0)}
                       </Typography>
-                      <Typography variant="body2" sx={{ 
-                        color: '#64748b',
-                        fontWeight: 500
-                      }}>
-                        Pending Requests
+                      <Typography variant="body2" sx={{ color: '#64748b' }}>
+                        Remaining Days
                       </Typography>
                     </Box>
                   </Box>
@@ -452,237 +384,110 @@ const Employee = () => {
             </Grid>
           </Grid>
 
-          {/* Apply Leave Button */}
-          <Box sx={{ mb: 5 }}>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              size="large"
-              onClick={() => navigate('/leave-apply')}
-              sx={{
-                bgcolor: '#3b82f6',
-                textTransform: 'none',
-                fontWeight: 500,
-                fontSize: '0.3 rem',
-                px: 3,
-                py: 1,
-                borderRadius: 2,
-                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-                '&:hover': { 
-                  bgcolor: '#2563eb',
-                  boxShadow: '0 6px 16px rgba(59, 130, 246, 0.4)',
-                  transform: 'translateY(-1px)'
-                },
-                transition: 'all 0.3s ease'
-              }}
-            >
-              Apply for Leave
-            </Button>
-          </Box>
-
-          {/* Main Content */}
-          <Grid container spacing={4}>
-            {/* Leave Requests Table */}
-            <Grid sx={{ width: { xs: '100%', lg: '66.67%' } }}>
-              <Card sx={{ 
-                bgcolor: 'white',
-                borderRadius: 3,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                border: '1px solid #e2e8f0',
-                height: 'fit-content'
-              }}>
-                <Box sx={{ p: 3, borderBottom: '1px solid #e2e8f0' }}>
-                  <Typography variant="h5" sx={{ 
-                    color: '#1e293b', 
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <Assignment sx={{ color: '#3b82f6' }} />
-                    Leave Request History
+          {/* Recent Leave Requests */}
+          <Card sx={{ 
+            bgcolor: 'white',
+            borderRadius: 3,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            border: '1px solid #e2e8f0'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Avatar sx={{ 
+                  bgcolor: '#941936', 
+                  width: 48, 
+                  height: 48,
+                  mr: 2
+                }}>
+                  <Assignment />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#1e293b' }}>
+                    Recent Leave Requests
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#64748b' }}>
+                    Your recent leave applications and their status
                   </Typography>
                 </Box>
-                {leaveRequests.length === 0 ? (
-                  <Box sx={{ p: 4, textAlign: 'center' }}>
-                    <Typography variant="body1" sx={{ color: '#64748b', mb: 2 }}>
-                      No leave requests found
-                    </Typography>
-                    <Button
-                      variant="outlined"
-                      startIcon={<Add />}
-                      onClick={() => navigate('/leave-apply')}
-                      sx={{ color: '#3b82f6', borderColor: '#3b82f6' }}
-                    >
-                      Apply for Leave
-                    </Button>
-                  </Box>
-                ) : (
-                  <TableContainer>
-                    <Table>
-                      <TableHead>
-                        <TableRow sx={{ bgcolor: '#f8fafc' }}>
-                          <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Leave Type</TableCell>
-                          <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Start Date</TableCell>
-                          <TableCell sx={{ fontWeight: 600, color: '#374151' }}>End Date</TableCell>
-                          <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Days</TableCell>
-                          <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Reason</TableCell>
-                          <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Status</TableCell>
-                          <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Submitted</TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 600, color: '#374151' }}>Actions</TableCell>
+              </Box>
+
+              {leaveRequests.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="body1" sx={{ color: '#64748b', mb: 2 }}>
+                    No leave requests found
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<Add />}
+                    onClick={() => navigate('/leave-apply')}
+                    sx={{ 
+                      bgcolor: '#941936',
+                      '&:hover': { bgcolor: '#7a0f2b' }
+                    }}
+                  >
+                    Apply for Leave
+                  </Button>
+                </Box>
+              ) : (
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, color: '#1e293b' }}>ID</TableCell>
+                        <TableCell sx={{ fontWeight: 600, color: '#1e293b' }}>Leave Type</TableCell>
+                        <TableCell sx={{ fontWeight: 600, color: '#1e293b' }}>Start Date</TableCell>
+                        <TableCell sx={{ fontWeight: 600, color: '#1e293b' }}>End Date</TableCell>
+                        <TableCell sx={{ fontWeight: 600, color: '#1e293b' }}>Days</TableCell>
+                        <TableCell sx={{ fontWeight: 600, color: '#1e293b' }}>Status</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {leaveRequests.slice(0, 5).map((request) => (
+                        <TableRow key={request.id || request.LeaveRequestID} sx={{ '&:hover': { bgcolor: '#f8fafc' } }}>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 500, color: '#64748b' }}>
+                              #{request.id || request.LeaveRequestID}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {request.leaveType || request.LeaveType || request.LeaveTypeName}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {new Date(request.startDate || request.StartDate).toLocaleDateString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {new Date(request.endDate || request.EndDate).toLocaleDateString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {(request.days !== undefined && request.days !== null)
+                                ? request.days
+                                : calculateDays(request.startDate || request.StartDate, request.endDate || request.EndDate)
+                              } days
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={getStatusText(request.status || request.LeaveStatus)} 
+                              color={getStatusColor(request.status || request.LeaveStatus)}
+                              size="small"
+                              sx={{ fontWeight: 500 }}
+                            />
+                          </TableCell>
                         </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {leaveRequests.map((request) => (
-                          <TableRow key={request.id} hover sx={{ '&:hover': { bgcolor: '#f8fafc' } }}>
-                            <TableCell>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1e293b' }}>
-                                {request.leaveType}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" sx={{ color: '#374151' }}>
-                                {new Date(request.startDate).toLocaleDateString()}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" sx={{ color: '#374151' }}>
-                                {new Date(request.endDate).toLocaleDateString()}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Chip 
-                                label={`${request.days} days`}
-                                size="small"
-                                sx={{ 
-                                  bgcolor: '#e0f2fe',
-                                  color: '#0369a1',
-                                  fontWeight: 600
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" sx={{ 
-                                color: '#374151',
-                                maxWidth: 150,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}>
-                                {request.reason}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Chip
-                                label={getStatusText(request.status)}
-                                color={getStatusColor(request.status)}
-                                size="small"
-                                sx={{ fontWeight: 600 }}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" sx={{ color: '#6b7280' }}>
-                                {new Date(request.submittedDate).toLocaleDateString()}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="center">
-                              <Tooltip title="View Details">
-                                <IconButton 
-                                  size="small" 
-                                  sx={{ 
-                                    color: '#3b82f6',
-                                    '&:hover': { bgcolor: '#dbeafe' }
-                                  }}
-                                >
-                                  <Visibility />
-                                </IconButton>
-                              </Tooltip>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                )}
-              </Card>
-            </Grid>
-
-            {/* Upcoming Holidays */}
-            <Grid sx={{ width: { xs: '100%', lg: '33.33%' } }}>
-              <Card sx={{ 
-                bgcolor: 'white',
-                borderRadius: 3,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                border: '1px solid #e2e8f0',
-                height: 'fit-content'
-              }}>
-                <Box sx={{ p: 3, borderBottom: '1px solid #e2e8f0' }}>
-                  <Typography variant="h5" sx={{ 
-                    color: '#1e293b', 
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <CalendarToday sx={{ color: '#3b82f6' }} />
-                    Upcoming Holidays
-                  </Typography>
-                </Box>
-                <Box sx={{ p: 3 }}>
-                  {upcomingHolidays.map((holiday, index) => (
-                    <Box key={holiday.id}>
-                      <Box sx={{ 
-                        p: 2.5, 
-                        mb: 2, 
-                        borderRadius: 2,
-                        backgroundColor: holiday.holidayType === 'Public Holiday' ? '#fef3c7' : '#dbeafe',
-                        border: holiday.holidayType === 'Public Holiday' ? '1px solid #fde68a' : '1px solid #93c5fd'
-                      }}>
-                        <Typography variant="subtitle1" sx={{ 
-                          fontWeight: 700, 
-                          color: '#1e293b',
-                          mb: 1
-                        }}>
-                          {holiday.holidayName}
-                        </Typography>
-                        <Chip 
-                          label={holiday.holidayType}
-                          size="small"
-                          sx={{ 
-                            bgcolor: holiday.holidayType === 'Public Holiday' ? '#f59e0b' : '#3b82f6',
-                            color: 'white',
-                            fontWeight: 600,
-                            mb: 1
-                          }}
-                        />
-                        <Typography variant="body2" sx={{ 
-                          color: '#64748b',
-                          fontWeight: 500,
-                          mb: 0.5
-                        }}>
-                          {new Date(holiday.holidayDate).toLocaleDateString('en-US', { 
-                            weekday: 'long', 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
-                          })}
-                        </Typography>
-                        <Typography variant="caption" sx={{ 
-                          color: '#64748b',
-                          fontStyle: 'italic'
-                        }}>
-                          {holiday.description}
-                        </Typography>
-                      </Box>
-                      {index < upcomingHolidays.length - 1 && (
-                        <Divider sx={{ my: 2 }} />
-                      )}
-                    </Box>
-                  ))}
-                </Box>
-              </Card>
-            </Grid>
-          </Grid>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </CardContent>
+          </Card>
         </Container>
       </Box>
     </Box>

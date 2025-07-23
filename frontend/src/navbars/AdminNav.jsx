@@ -14,6 +14,7 @@ import './Admin.css';
 import { Link, useNavigate } from "react-router-dom";
 import Logo from "../assets/ICST.png";
 import { logout } from "../api";
+import { ListItem, ListItemText } from '@mui/material';
 
 function AdminNav() {
     const [manageOpen, setManageOpen] = useState(false);
@@ -117,8 +118,13 @@ function AdminNav() {
                             <li className="manage-item">
                                 <Link to="/holidaycalendar" className="dropdown-li">Calendar</Link>
                             </li>
+                            <li className="manage-item">
+                                <Link to="/profile" className="dropdown-li">Profile</Link>
+                            </li>
                         </ul>
                     )}
+
+                    
 
                     {/* Logout */}
                     <li className="sidebar-item">

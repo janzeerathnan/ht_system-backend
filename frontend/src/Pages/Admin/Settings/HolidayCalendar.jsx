@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -26,7 +26,8 @@ import {
   DialogActions,
   Snackbar,
   Alert,
-  Grid
+  Grid,
+  CircularProgress
 } from '@mui/material';
 import {
   Add,
@@ -35,7 +36,9 @@ import {
   Search,
   FilterList,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Visibility,
+  VisibilityOff
 } from '@mui/icons-material';
 import AdminNav from '../../../navbars/AdminNav';
 import AddHolidayForm from '../../../components/AddHolidayForm';
@@ -47,6 +50,7 @@ import {
   updateHoliday, 
   deleteHoliday 
 } from '../../../api';
+import { useToast } from '../../../components/ToastProvider';
 
 const HolidayCalendar = () => {
   const [holidays, setHolidays] = useState([]);
@@ -58,16 +62,23 @@ const HolidayCalendar = () => {
   const [addDialog, setAddDialog] = useState({ open: false });
   const [editDialog, setEditDialog] = useState({ open: false, holiday: null });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, holiday: null });
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const deleteDialogRef = useRef(null);
+  const { showToast } = useToast();
 
   const fetchHolidays = async () => {
     try {
+      setLoading(true);
       const response = await getHolidays();
       if (response.success) {
         setHolidays(response.data);
+      } else {
+        showToast('Failed to load holidays', 'error');
       }
     } catch (error) {
       console.error('Error fetching holidays:', error);
+      showToast('Failed to load holidays', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -92,9 +103,23 @@ const HolidayCalendar = () => {
     fetchMonthHolidays();
   }, [currentMonth]);
 
+  useEffect(() => {
+    document.title = 'Holiday Calendar';
+  }, []);
+
+  useEffect(() => {
+    if (deleteDialog.open && deleteDialogRef.current) {
+      const cancelButton = deleteDialogRef.current.querySelector('button[onclick*="handleDeleteCancel"]');
+      if (cancelButton) {
+        setTimeout(() => cancelButton.focus(), 100);
+      }
+    }
+  }, [deleteDialog.open]);
+
   const handleAddHoliday = (newHoliday) => {
     setHolidays(prev => [...prev, newHoliday]);
     fetchMonthHolidays();
+    showToast('Holiday added successfully!', 'success');
   };
 
   const handleDelete = (holiday) => {
@@ -108,13 +133,13 @@ const HolidayCalendar = () => {
         if (response.success) {
           setHolidays(prev => prev.filter(h => h.HolidayID !== deleteDialog.holiday.HolidayID));
           fetchMonthHolidays();
-          showSnackbar('Holiday deleted successfully!', 'success');
+          showToast('Holiday deleted successfully!', 'success');
         } else {
-          showSnackbar(response.message || 'Failed to delete holiday', 'error');
+          showToast(response.message || 'Failed to delete holiday', 'error');
         }
       } catch (error) {
         console.error('Error deleting holiday:', error);
-        showSnackbar('Failed to delete holiday', 'error');
+        showToast('Failed to delete holiday', 'error');
       }
     }
     setDeleteDialog({ open: false, holiday: null });
@@ -136,23 +161,15 @@ const HolidayCalendar = () => {
           h.HolidayID === editDialog.holiday.HolidayID ? response.data : h
         ));
         fetchMonthHolidays();
-        showSnackbar('Holiday updated successfully!', 'success');
+        showToast('Holiday updated successfully!', 'success');
         setEditDialog({ open: false, holiday: null });
       } else {
-        showSnackbar(response.message || 'Failed to update holiday', 'error');
+        showToast(response.message || 'Failed to update holiday', 'error');
       }
     } catch (error) {
       console.error('Error updating holiday:', error);
-      showSnackbar('Failed to update holiday', 'error');
+      showToast('Failed to update holiday', 'error');
     }
-  };
-
-  const showSnackbar = (message, severity = 'success') => {
-    setSnackbar({ open: true, message, severity });
-  };
-
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
   };
 
   const nextMonth = () => {
@@ -502,7 +519,7 @@ const HolidayCalendar = () => {
       />
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialog.open} onClose={handleDeleteCancel}>
+      <Dialog open={deleteDialog.open} onClose={handleDeleteCancel} ref={deleteDialogRef}>
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>
@@ -516,28 +533,6 @@ const HolidayCalendar = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Success/Error Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={snackbar.severity} 
-          variant="filled"
-          sx={{ 
-            width: '100%',
-            '& .MuiAlert-icon': {
-              color: 'white'
-            }
-          }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </>
   );
 };

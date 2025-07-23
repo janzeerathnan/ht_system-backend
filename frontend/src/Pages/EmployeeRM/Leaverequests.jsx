@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -18,13 +18,15 @@ import {
   Tooltip,
   Divider,
   Avatar,
-  Snackbar,
-  Alert,
+
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField
+  TextField,
+
+  CircularProgress,
+  Switch
 } from '@mui/material';
 import {
   Person,
@@ -40,20 +42,54 @@ import {
   CalendarToday,
   WorkOutline,
   ThumbUp,
-  ThumbDown
+  ThumbDown,
+  Search,
+  FilterList,
+  Edit,
+  Delete,
+  Pending
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import EmpRMNav from '../../navbars/EmpRMNav';
 import { getTeamLeaveRequests, approveLeaveRequest, rejectLeaveRequest } from '../../api';
+import { useToast } from '../../components/ToastProvider';
 
 const LeaveRequests = () => {
+  const navigate = useNavigate();
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
   const [actionDialog, setActionDialog] = useState({ open: false, type: '', requestId: null, reason: '' });
+  const [viewDialog, setViewDialog] = useState({ open: false, request: null });
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const editDialogRef = useRef(null);
+  const approvalDialogRef = useRef(null);
+  const { showToast } = useToast();
+
+  const checkAuth = useCallback(() => {
+    const token = localStorage.getItem('token');
+    const employeeData = JSON.parse(localStorage.getItem('employee') || '{}');
+    const role = employeeData?.role?.RoleName?.toLowerCase();
+
+    if (!token) {
+      navigate('/');
+      return;
+    }
+
+    // Ensure this is for Reporting Managers only
+    if (role !== 'rm') {
+      navigate('/employee');
+      return;
+    }
+  }, [navigate]);
 
   useEffect(() => {
+    checkAuth();
     fetchTeamLeaveRequests();
-  }, []);
+    document.title = 'ICST | Leave Requests';
+  }, [checkAuth]);
 
   const fetchTeamLeaveRequests = async () => {
     try {
@@ -63,19 +99,10 @@ const LeaveRequests = () => {
       if (response.success) {
         setLeaveRequests(response.data);
       } else {
-        setSnackbar({
-          open: true,
-          message: response.message || 'Failed to fetch team leave requests',
-          severity: 'error'
-        });
+        showToast(response.message || 'Failed to fetch team leave requests', 'error');
       }
     } catch (error) {
-      console.error('Error fetching team leave requests:', error);
-      setSnackbar({
-        open: true,
-        message: 'Failed to fetch team leave requests',
-        severity: 'error'
-      });
+      showToast('Failed to fetch team leave requests', 'error');
     } finally {
       setLoading(false);
     }
@@ -89,47 +116,8 @@ const LeaveRequests = () => {
     setActionDialog({ open: true, type: 'reject', requestId, reason: '' });
   };
 
-  const handleActionSubmit = async () => {
-    const { type, requestId, reason } = actionDialog;
-    
-    try {
-      let response;
-      if (type === 'approve') {
-        response = await approveLeaveRequest(requestId, reason);
-      } else {
-        if (!reason.trim()) {
-          setSnackbar({
-            open: true,
-            message: 'Please provide a reason for rejection',
-            severity: 'error'
-          });
-          return;
-        }
-        response = await rejectLeaveRequest(requestId, reason);
-      }
-
-      if (response.success) {
-        setSnackbar({
-          open: true,
-          message: `Leave request ${type === 'approve' ? 'approved' : 'rejected'} successfully`,
-          severity: 'success'
-        });
-        setActionDialog({ open: false, type: '', requestId: null, reason: '' });
-        fetchTeamLeaveRequests(); // Refresh the list
-      } else {
-        setSnackbar({
-          open: true,
-          message: response.message || `Failed to ${type} leave request`,
-          severity: 'error'
-        });
-      }
-    } catch (error) {
-      setSnackbar({
-        open: true,
-        message: `Failed to ${type} leave request`,
-        severity: 'error'
-      });
-    }
+  const handleViewDetails = (request) => {
+    setViewDialog({ open: true, request });
   };
 
   const getStatusColor = (status) => {
@@ -166,6 +154,62 @@ const LeaveRequests = () => {
     return diffDays;
   };
 
+  // Focus management for dialogs
+  useEffect(() => {
+    if (viewDialog.open && editDialogRef.current) {
+      const textarea = editDialogRef.current.querySelector('textarea');
+      if (textarea) {
+        setTimeout(() => textarea.focus(), 100);
+      }
+    }
+  }, [viewDialog.open]);
+
+  useEffect(() => {
+    if (actionDialog.open && approvalDialogRef.current) {
+      const reasonInput = approvalDialogRef.current.querySelector('input[type="text"]');
+      if (reasonInput) {
+        setTimeout(() => reasonInput.focus(), 100);
+      }
+    }
+  }, [actionDialog.open]);
+
+  const handleApprovalSubmit = async () => {
+    const { type, requestId, reason } = actionDialog;
+    try {
+      let response;
+      if (type === 'approve') {
+        response = await approveLeaveRequest(requestId, reason);
+      } else {
+        if (!reason.trim()) {
+          showToast('Please provide a reason for rejection', 'error');
+          return;
+        }
+        response = await rejectLeaveRequest(requestId, reason);
+      }
+      
+      if (response.success) {
+        setLeaveRequests(prev => prev.map(req => 
+          req.LeaveRequestID === requestId 
+            ? { 
+                ...req, 
+                LeaveStatus: type === 'approve' ? 'approved' : 'rejected',
+                ApprovalDate: new Date().toISOString(),
+                RejectionReason: type === 'reject' ? reason : req.RejectionReason
+              }
+            : req
+        ));
+        
+        showToast(`Leave request ${type === 'approve' ? 'approved' : 'rejected'} successfully`, 'success');
+        setActionDialog({ open: false, type: '', requestId: null, reason: '' });
+      } else {
+        showToast(response.message || `Failed to ${type} leave request`, 'error');
+      }
+    } catch (error) {
+      console.error('Error approving/rejecting leave request:', error);
+      showToast(`Failed to ${type} leave request`, 'error');
+    }
+  };
+
   return (
     <Box sx={{ display: 'flex' }}>
       <EmpRMNav />
@@ -175,7 +219,7 @@ const LeaveRequests = () => {
           flexGrow: 1,
           p: 4,
           mt: 8,
-          ml: { sm: '260px' },
+          ml: { sm: '10px' },
           backgroundColor: '#f8fafc',
           minHeight: '100vh'
         }}
@@ -189,19 +233,26 @@ const LeaveRequests = () => {
           </Typography>
         </Box>
 
-        <Card sx={{ bgcolor: 'white', borderRadius: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0' }}>
-          <Box sx={{ p: 3, borderBottom: '1px solid #e2e8f0' }}>
-            <Typography variant="h5" sx={{ color: '#1e293b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Assignment sx={{ color: '#2196f3' }} />
-              Team Leave Request Management
-            </Typography>
-          </Box>
-          
-          {loading ? (
+        {loading ? (
+          <Card sx={{ bgcolor: 'white', borderRadius: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0' }}>
             <Box sx={{ p: 4, textAlign: 'center' }}>
-              <Typography>Loading team leave requests...</Typography>
+              <Typography variant="h6" sx={{ color: '#64748b', mb: 2 }}>
+                Loading team leave requests...
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#64748b' }}>
+                Please wait while we fetch the latest data.
+              </Typography>
             </Box>
-          ) : (
+          </Card>
+        ) : (
+          <Card sx={{ bgcolor: 'white', borderRadius: 3, boxShadow: '0 1px 3px rgba(155,28,60,0.15)', border: '2px solid #9b1c3c' }}>
+            <Box sx={{ p: 3, borderBottom: '1px solid #e2e8f0' }}>
+              <Typography variant="h5" sx={{ color: '#1e293b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Assignment sx={{ color: '#2196f3' }} />
+                Team Leave Request Management
+              </Typography>
+            </Box>
+            
             <TableContainer>
               <Table>
                 <TableHead>
@@ -233,7 +284,7 @@ const LeaveRequests = () => {
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Avatar sx={{ 
-                              bgcolor: '#2196f3', 
+                              bgcolor: '#9b1c3c', 
                               width: 32, 
                               height: 32,
                               fontSize: '0.8rem'
@@ -241,17 +292,17 @@ const LeaveRequests = () => {
                               {request.employee?.FirstName?.charAt(0) || 'E'}
                             </Avatar>
                             <Box>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1e293b' }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1e293b' }} component="span">
                                 {request.employee?.FirstName} {request.employee?.LastName}
                               </Typography>
-                              <Typography variant="caption" sx={{ color: '#64748b' }}>
+                              <Typography variant="caption" sx={{ color: '#64748b' }} component="span">
                                 {request.employee?.role?.RoleName}
                               </Typography>
                             </Box>
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1e293b' }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1e293b' }} component="span">
                             {request.leaveType?.LeaveName}
                           </Typography>
                         </TableCell>
@@ -271,17 +322,17 @@ const LeaveRequests = () => {
                             overflow: 'hidden', 
                             textOverflow: 'ellipsis', 
                             whiteSpace: 'nowrap' 
-                          }}>
+                          }} component="span">
                             {request.Reason}
                           </Typography>
                         </TableCell>
                         <TableCell>
                           {request.coverUpEmployee ? (
-                            <Typography variant="body2" sx={{ color: '#374151' }}>
+                            <Typography variant="body2" sx={{ color: '#374151' }} component="span">
                               {request.coverUpEmployee.FirstName} {request.coverUpEmployee.LastName}
                             </Typography>
                           ) : (
-                            <Typography variant="body2" sx={{ color: '#64748b', fontStyle: 'italic' }}>
+                            <Typography variant="body2" sx={{ color: '#64748b', fontStyle: 'italic' }} component="span">
                               None
                             </Typography>
                           )}
@@ -291,45 +342,81 @@ const LeaveRequests = () => {
                             label={getStatusText(request.LeaveStatus)} 
                             color={getStatusColor(request.LeaveStatus)} 
                             size="small" 
-                            sx={{ fontWeight: 600 }} 
+                            sx={{ fontWeight: 600, bgcolor: request.LeaveStatus === 'approved' ? '#102752' : request.LeaveStatus === 'rejected' ? '#9b1c3c' : '#e0e0e0', color: 'white' }} 
                           />
                         </TableCell>
                         <TableCell>{new Date(request.created_at).toLocaleDateString()}</TableCell>
                         <TableCell align="center">
-                          {request.LeaveStatus === 'pending' ? (
-                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                              <Tooltip title="Approve Request">
-                                <IconButton 
-                                  size="small" 
-                                  sx={{ 
-                                    color: '#10b981',
-                                    '&:hover': { bgcolor: '#d1fae5' }
-                                  }}
+                          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                            {request.LeaveStatus === 'pending' ? (
+                              <>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  color="success"
                                   onClick={() => handleApprove(request.LeaveRequestID)}
-                                >
-                                  <ThumbUp />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Reject Request">
-                                <IconButton 
-                                  size="small" 
                                   sx={{ 
-                                    color: '#ef4444',
-                                    '&:hover': { bgcolor: '#fee2e2' }
+                                    minWidth: 'auto',
+                                    px: 2,
+                                    py: 0.5,
+                                    fontSize: '0.75rem',
+                                    textTransform: 'none',
+                                    bgcolor: '#9b1c3c',
+                                    color: 'white',
+                                    fontWeight: 600,
+                                    '&:hover': { bgcolor: '#102752' }
                                   }}
-                                  onClick={() => handleReject(request.LeaveRequestID)}
                                 >
-                                  <ThumbDown />
-                                </IconButton>
-                              </Tooltip>
-                            </Box>
-                          ) : (
-                            <Tooltip title="View Details">
-                              <IconButton size="small" sx={{ color: '#2196f3', '&:hover': { bgcolor: '#e3f2fd' } }}>
-                                <Visibility />
-                              </IconButton>
-                            </Tooltip>
-                          )}
+                                  Accept
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  color="error"
+                                  onClick={() => handleReject(request.LeaveRequestID)}
+                                  sx={{ 
+                                    minWidth: 'auto',
+                                    px: 2,
+                                    py: 0.5,
+                                    fontSize: '0.75rem',
+                                    textTransform: 'none',
+                                    bgcolor: '#102752',
+                                    color: 'white',
+                                    fontWeight: 600,
+                                    '&:hover': { bgcolor: '#9b1c3c' }
+                                  }}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Tooltip title="View Details">
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleViewDetails(request)}
+                                    sx={{ color: '#2196f3', '&:hover': { bgcolor: '#e3f2fd' } }}
+                                  >
+                                    <Visibility />
+                                  </IconButton>
+                                </Tooltip>
+                                {request.LeaveStatus === 'approved' && (
+                                  <Tooltip title="Approved">
+                                    <IconButton size="small" sx={{ color: '#10b981', '&:hover': { bgcolor: '#d1fae5' } }}>
+                                      <CheckCircle />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                                {request.LeaveStatus === 'rejected' && (
+                                  <Tooltip title="Rejected">
+                                    <IconButton size="small" sx={{ color: '#ef4444', '&:hover': { bgcolor: '#fee2e2' } }}>
+                                      <Cancel />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                              </>
+                            )}
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))
@@ -337,8 +424,8 @@ const LeaveRequests = () => {
                 </TableBody>
               </Table>
             </TableContainer>
-          )}
-        </Card>
+          </Card>
+        )}
 
         {/* Action Dialog */}
         <Dialog 
@@ -347,7 +434,7 @@ const LeaveRequests = () => {
           maxWidth="sm"
           fullWidth
         >
-          <DialogTitle>
+          <DialogTitle sx={{ bgcolor: '#102752', color: 'white' }}>
             {actionDialog.type === 'approve' ? 'Approve Leave Request' : 'Reject Leave Request'}
           </DialogTitle>
           <DialogContent>
@@ -372,28 +459,133 @@ const LeaveRequests = () => {
               Cancel
             </Button>
             <Button 
-              onClick={handleActionSubmit}
+              onClick={handleApprovalSubmit}
               variant="contained"
-              color={actionDialog.type === 'approve' ? 'success' : 'error'}
+              sx={{
+                bgcolor: actionDialog.type === 'approve' ? '#9b1c3c' : '#102752',
+                color: 'white',
+                fontWeight: 600,
+                '&:hover': { bgcolor: actionDialog.type === 'approve' ? '#102752' : '#9b1c3c' }
+              }}
             >
               {actionDialog.type === 'approve' ? 'Approve' : 'Reject'}
             </Button>
           </DialogActions>
         </Dialog>
 
-        <Snackbar 
-          open={snackbar.open} 
-          autoHideDuration={3000} 
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        {/* View Details Dialog */}
+        <Dialog 
+          open={viewDialog.open} 
+          onClose={() => setViewDialog({ open: false, request: null })}
+          maxWidth="md"
+          fullWidth
         >
-          <Alert 
-            onClose={() => setSnackbar({ ...snackbar, open: false })} 
-            severity={snackbar.severity} 
-            sx={{ width: '100%' }}
-          >
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
+          <DialogTitle>
+            Leave Request Details
+          </DialogTitle>
+          <DialogContent>
+            {viewDialog.request && (
+              <Box sx={{ mt: 2 }}>
+                <Grid container spacing={3}>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
+                    <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
+                      Employee
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
+                      {viewDialog.request.employee?.FirstName} {viewDialog.request.employee?.LastName}
+                    </Typography>
+                  </Grid>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
+                    <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
+                      Leave Type
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
+                      {viewDialog.request.leaveType?.LeaveName}
+                    </Typography>
+                  </Grid>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
+                    <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
+                      Start Date
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
+                      {new Date(viewDialog.request.StartDate).toLocaleDateString()}
+                    </Typography>
+                  </Grid>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
+                    <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
+                      End Date
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
+                      {new Date(viewDialog.request.EndDate).toLocaleDateString()}
+                    </Typography>
+                  </Grid>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
+                    <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
+                      Duration
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
+                      {calculateDays(viewDialog.request.StartDate, viewDialog.request.EndDate)} days
+                    </Typography>
+                  </Grid>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
+                    <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
+                      Status
+                    </Typography>
+                    <Chip 
+                      label={getStatusText(viewDialog.request.LeaveStatus)} 
+                      color={getStatusColor(viewDialog.request.LeaveStatus)} 
+                      size="small" 
+                      sx={{ fontWeight: 600 }} 
+                    />
+                  </Grid>
+                  <Grid sx={{ width: '100%' }}>
+                    <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
+                      Reason
+                    </Typography>
+                    <Typography variant="body1" sx={{ mb: 2 }} component="span">
+                      {viewDialog.request.Reason}
+                    </Typography>
+                  </Grid>
+                  <Grid sx={{ width: '100%' }}>
+                    <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
+                      Description
+                    </Typography>
+                    <Typography variant="body1" sx={{ mb: 2 }} component="span">
+                      {viewDialog.request.Description || 'No additional description provided'}
+                    </Typography>
+                  </Grid>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
+                    <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
+                      Cover Up Employee
+                    </Typography>
+                    <Typography variant="body1" sx={{ mb: 2 }} component="span">
+                      {viewDialog.request.coverUpEmployee ? 
+                        `${viewDialog.request.coverUpEmployee.FirstName} ${viewDialog.request.coverUpEmployee.LastName}` : 
+                        'None assigned'
+                      }
+                    </Typography>
+                  </Grid>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
+                    <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
+                      Submitted Date
+                    </Typography>
+                    <Typography variant="body1" sx={{ mb: 2 }} component="span">
+                      {new Date(viewDialog.request.created_at).toLocaleDateString()}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button 
+              onClick={() => setViewDialog({ open: false, request: null })}
+            >
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
+
       </Box>
     </Box>
   );

@@ -11,16 +11,12 @@ import {
   Select,
   MenuItem,
   Alert,
-  Card,
-  CardContent,
-  Chip,
-  Input,
   FormHelperText
 } from '@mui/material';
 import EmpNav from '../../navbars/EmpNav';
 import { 
-  getEmployeesForLeave, 
-  getLeaveTypesForRequest, 
+  getLeaveTypesForRequest,
+  getEmployeesForLeave,
   submitLeaveRequest 
 } from '../../api';
 
@@ -37,9 +33,11 @@ const LeaveApply = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [document, setDocument] = useState(null);
+  const [leaveDocument, setLeaveDocument] = useState(null);
   const [errors, setErrors] = useState({});
   const [employee, setEmployee] = useState({});
+  const [leaveDayType, setLeaveDayType] = useState('full');
+  const dashboardName = 'Leave Application';
 
   useEffect(() => {
     const checkAuth = () => {
@@ -51,11 +49,20 @@ const LeaveApply = () => {
         return;
       }
 
+      // Check if user is an employee
+      if (employeeData?.role?.RoleName?.toLowerCase() !== 'employee') {
+        window.location.href = '/';
+        return;
+      }
+
       setEmployee(employeeData);
     };
 
     checkAuth();
     fetchData();
+    if (typeof window !== 'undefined' && window.document) {
+      window.document.title = 'ICST | Leave Application';
+    }
   }, []);
 
   const fetchData = async () => {
@@ -69,14 +76,16 @@ const LeaveApply = () => {
       ]);
 
       if (leaveTypesRes.success) {
-        setLeaveTypes(leaveTypesRes.data);
+        const employeeLeaveTypes = leaveTypesRes.data.filter(type => 
+          type.RoleID === employeeData?.role?.RoleID || type.RoleID === null
+        );
+        setLeaveTypes(employeeLeaveTypes);
       }
 
       if (employeesRes.success) {
         setEmployees(employeesRes.data);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
       setMessage({
         type: 'error',
         text: 'Failed to load form data. Please refresh the page.'
@@ -93,14 +102,26 @@ const LeaveApply = () => {
 
     if (!leaveForm.StartDate) {
       newErrors.StartDate = 'Start date is required';
-    } else if (new Date(leaveForm.StartDate) < new Date()) {
-      newErrors.StartDate = 'Start date cannot be in the past';
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const startDate = new Date(leaveForm.StartDate);
+      startDate.setHours(0, 0, 0, 0);
+      if (startDate < today) {
+        newErrors.StartDate = 'Start date cannot be in the past';
+      }
     }
 
     if (!leaveForm.EndDate) {
       newErrors.EndDate = 'End date is required';
-    } else if (new Date(leaveForm.EndDate) < new Date(leaveForm.StartDate)) {
-      newErrors.EndDate = 'End date must be after start date';
+    } else {
+      const startDate = new Date(leaveForm.StartDate);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(leaveForm.EndDate);
+      endDate.setHours(0, 0, 0, 0);
+      if (endDate < startDate) {
+        newErrors.EndDate = 'End date must be after start date';
+      }
     }
 
     if (!leaveForm.Reason.trim()) {
@@ -124,14 +145,17 @@ const LeaveApply = () => {
     try {
       const formData = new FormData();
       formData.append('LeaveTypeID', leaveForm.LeaveTypeID);
-      formData.append('CoverUpEMPID', leaveForm.CoverUpEMPID || '');
+      if (leaveForm.CoverUpEMPID) {
+        formData.append('cover_up_employee_id', leaveForm.CoverUpEMPID);
+      }
       formData.append('StartDate', leaveForm.StartDate);
       formData.append('EndDate', leaveForm.EndDate);
       formData.append('Reason', leaveForm.Reason);
       formData.append('Description', leaveForm.Description || '');
+      formData.append('leave_day_type', leaveDayType);
       
-      if (document) {
-        formData.append('document', document);
+      if (leaveDocument) {
+        formData.append('document', leaveDocument);
       }
 
       const response = await submitLeaveRequest(formData);
@@ -142,7 +166,6 @@ const LeaveApply = () => {
           text: 'Leave application submitted successfully! Your request has been sent to your reporting manager for approval.'
         });
         
-        // Reset form
         setLeaveForm({
           LeaveTypeID: '',
           CoverUpEMPID: '',
@@ -151,21 +174,23 @@ const LeaveApply = () => {
           Reason: '',
           Description: ''
         });
-        setDocument(null);
+        setLeaveDocument(null);
         setErrors({});
         
-        // Redirect to employee dashboard after 3 seconds
         setTimeout(() => {
           window.location.href = '/employee';
         }, 3000);
       } else {
+        let errorText = response.message || 'Failed to submit leave application. Please try again.';
+        if (response.errors) {
+          errorText += '\n' + Object.values(response.errors).join(' ');
+        }
         setMessage({
           type: 'error',
-          text: response.message || 'Failed to submit leave application. Please try again.'
+          text: errorText
         });
       }
     } catch (error) {
-      console.error('Submit error:', error);
       setMessage({
         type: 'error',
         text: 'Failed to submit leave application. Please check your connection and try again.'
@@ -181,7 +206,6 @@ const LeaveApply = () => {
       [field]: value
     }));
     
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({
         ...prev,
@@ -193,7 +217,6 @@ const LeaveApply = () => {
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
-      // Validate file size (2MB limit)
       if (file.size > 2 * 1024 * 1024) {
         setMessage({
           type: 'error',
@@ -202,7 +225,6 @@ const LeaveApply = () => {
         return;
       }
       
-      // Validate file type
       const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/jpg', 'image/png'];
       if (!allowedTypes.includes(file.type)) {
         setMessage({
@@ -212,21 +234,18 @@ const LeaveApply = () => {
         return;
       }
       
-      setDocument(file);
+      setLeaveDocument(file);
       setMessage({ type: '', text: '' });
     }
   };
 
-  const calculateDays = () => {
-    if (leaveForm.StartDate && leaveForm.EndDate) {
-      const start = new Date(leaveForm.StartDate);
-      const end = new Date(leaveForm.EndDate);
-      const diffTime = Math.abs(end - start);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      return diffDays;
+  // Clear message after 4 seconds
+  useEffect(() => {
+    if (message.text) {
+      const timer = setTimeout(() => setMessage({ type: '', text: '' }), 4000);
+      return () => clearTimeout(timer);
     }
-    return 0;
-  };
+  }, [message.text]);
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -240,7 +259,7 @@ const LeaveApply = () => {
           ml: { sm: '10px' }
         }}
       >
-        <Typography variant="h4" gutterBottom sx={{ color: '#333', mb: 3 }}>
+        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: '#941936', mb: 4, textAlign: 'center' }}>
           Leave Application
         </Typography>
 
@@ -250,16 +269,16 @@ const LeaveApply = () => {
           </Alert>
         )}
 
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, md: 8 }}>
+        <Grid container spacing={3} columns={12}>
+          <Grid sx={{ width: '100%' }}>
             <Paper sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom sx={{ color: '#941936', mb: 3 }}>
                 Apply for Leave
               </Typography>
 
               <form onSubmit={handleSubmit}>
-                <Grid container spacing={3}>
-                  <Grid size={{ xs: 12, md: 6 }}>
+                <Grid container spacing={3} columns={12}>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
                     <FormControl fullWidth error={!!errors.LeaveTypeID}>
                       <InputLabel>Leave Type</InputLabel>
                       <Select
@@ -269,8 +288,21 @@ const LeaveApply = () => {
                         required
                       >
                         {leaveTypes.map((type) => (
-                          <MenuItem key={type.LeaveTypeID} value={type.LeaveTypeID}>
-                            {type.LeaveName} ({type.NumberOfLeaves} days)
+                          <MenuItem 
+                            key={type.LeaveTypeID} 
+                            value={type.LeaveTypeID}
+                            sx={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'flex-start'
+                            }}
+                          >
+                            <Typography variant="subtitle1">
+                              {type.LeaveName}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                              Available: {type.NumberOfLeaves} days
+                            </Typography>
                           </MenuItem>
                         ))}
                       </Select>
@@ -280,7 +312,7 @@ const LeaveApply = () => {
                     </FormControl>
                   </Grid>
 
-                  <Grid size={{ xs: 12, md: 6 }}>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
                     <FormControl fullWidth>
                       <InputLabel>Cover Up Employee (Optional)</InputLabel>
                       <Select
@@ -289,7 +321,9 @@ const LeaveApply = () => {
                         onChange={(e) => handleInputChange('CoverUpEMPID', e.target.value)}
                       >
                         <MenuItem value="">None</MenuItem>
-                        {employees.map((emp) => (
+                        {employees
+                          .filter(emp => emp.EMPID !== employee?.EMPID)
+                          .map((emp) => (
                           <MenuItem key={emp.EMPID} value={emp.EMPID}>
                             {emp.FirstName} {emp.LastName} ({emp.role?.RoleName})
                           </MenuItem>
@@ -298,7 +332,7 @@ const LeaveApply = () => {
                     </FormControl>
                   </Grid>
 
-                  <Grid size={{ xs: 12, md: 6 }}>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
                     <TextField
                       fullWidth
                       label="Start Date"
@@ -314,7 +348,7 @@ const LeaveApply = () => {
                     />
                   </Grid>
 
-                  <Grid size={{ xs: 12, md: 6 }}>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
                     <TextField
                       fullWidth
                       label="End Date"
@@ -333,7 +367,38 @@ const LeaveApply = () => {
                     />
                   </Grid>
 
-                  <Grid size={{ xs: 12 }}>
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
+                    <FormControl fullWidth>
+                      <InputLabel>Leave Day Type</InputLabel>
+                      <Select
+                        value={leaveDayType}
+                        label="Leave Day Type"
+                        onChange={(e) => setLeaveDayType(e.target.value)}
+                      >
+                        <MenuItem value="full">Full Day</MenuItem>
+                        <MenuItem value="half">Half Day</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+
+                  <Grid sx={{ width: { xs: '100%', md: '50%' } }}>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      fullWidth
+                      sx={{ mt: 1 }}
+                    >
+                      {leaveDocument ? leaveDocument.name : 'Upload Document (PDF, DOC, JPG, PNG, max 2MB)'}
+                      <input
+                        type="file"
+                        hidden
+                        onChange={handleFileChange}
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      />
+                    </Button>
+                  </Grid>
+
+                  <Grid sx={{ width: '100%' }}>
                     <TextField
                       fullWidth
                       label="Reason"
@@ -345,7 +410,7 @@ const LeaveApply = () => {
                     />
                   </Grid>
 
-                  <Grid size={{ xs: 12 }}>
+                  <Grid sx={{ width: '100%' }}>
                     <TextField
                       fullWidth
                       label="Description"
@@ -357,27 +422,10 @@ const LeaveApply = () => {
                     />
                   </Grid>
 
-                  <Grid size={{ xs: 12 }}>
-                    <FormControl fullWidth>
-                      <InputLabel>Document (Optional)</InputLabel>
-                      <Input
-                        type="file"
-                        onChange={handleFileChange}
-                        inputProps={{
-                          accept: '.pdf,.doc,.docx,.jpg,.jpeg,.png'
-                        }}
-                      />
-                      <FormHelperText>
-                        Upload supporting document (PDF, DOC, DOCX, JPG, PNG) - Max 2MB
-                      </FormHelperText>
-                    </FormControl>
-                  </Grid>
-
-                  <Grid size={{ xs: 12 }}>
+                  <Grid sx={{ width: '100%' }}>
                     <Button
                       type="submit"
                       variant="contained"
-                      size="large"
                       disabled={loading}
                       sx={{
                         bgcolor: '#941936',
@@ -389,74 +437,6 @@ const LeaveApply = () => {
                   </Grid>
                 </Grid>
               </form>
-            </Paper>
-          </Grid>
-
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Paper sx={{ p: 3, height: 'fit-content' }}>
-              <Typography variant="h6" gutterBottom sx={{ color: '#941936', mb: 3 }}>
-                Leave Summary
-              </Typography>
-              
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
-                  Selected Leave Type
-                </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 600, color: '#1e293b' }}>
-                  {leaveTypes.find(type => type.LeaveTypeID === leaveForm.LeaveTypeID)?.LeaveName || 'Not selected'}
-                </Typography>
-              </Box>
-
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
-                  Leave Duration
-                </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 600, color: '#1e293b' }}>
-                  {calculateDays()} days
-                </Typography>
-                {leaveForm.StartDate && leaveForm.EndDate && (
-                  <Typography variant="caption" sx={{ color: '#64748b' }}>
-                    {new Date(leaveForm.StartDate).toLocaleDateString()} - {new Date(leaveForm.EndDate).toLocaleDateString()}
-                  </Typography>
-                )}
-              </Box>
-
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
-                  Cover Up Employee
-                </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 600, color: '#1e293b' }}>
-                  {employees.find(emp => emp.EMPID === leaveForm.CoverUpEMPID) 
-                    ? `${employees.find(emp => emp.EMPID === leaveForm.CoverUpEMPID).FirstName} ${employees.find(emp => emp.EMPID === leaveForm.CoverUpEMPID).LastName}`
-                    : 'None selected'
-                  }
-                </Typography>
-              </Box>
-
-              {document && (
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="subtitle2" sx={{ color: '#64748b', mb: 1 }}>
-                    Attached Document
-                  </Typography>
-                  <Chip 
-                    label={document.name} 
-                    size="small" 
-                    sx={{ bgcolor: '#e0f2fe', color: '#0369a1' }}
-                  />
-                </Box>
-              )}
-
-              <Box sx={{ 
-                p: 2, 
-                bgcolor: '#f8fafc', 
-                borderRadius: 1, 
-                border: '1px solid #e2e8f0' 
-              }}>
-                <Typography variant="caption" sx={{ color: '#64748b' }}>
-                  <strong>Note:</strong> Your leave request will be reviewed by your reporting manager. 
-                  You will receive a notification once the request is approved or rejected.
-                </Typography>
-              </Box>
             </Paper>
           </Grid>
         </Grid>

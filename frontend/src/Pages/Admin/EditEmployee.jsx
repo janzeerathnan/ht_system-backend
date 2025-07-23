@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
     Container, Box, Typography, TextField, Button, Grid, Paper,
-    MenuItem, FormControl, InputLabel, Select, Snackbar, Alert,
-    CircularProgress
+    MenuItem, FormControl, InputLabel, Select, CircularProgress
 } from '@mui/material';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import AdminNav from '../../navbars/AdminNav';
+import { useToast } from '../../components/ToastProvider';
 
 const EditEmployee = () => {
     const navigate = useNavigate();
@@ -15,7 +15,7 @@ const EditEmployee = () => {
     const { employee: initialEmployee } = location.state || {};
 
     const [loading, setLoading] = useState(false);
-    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    const { showToast } = useToast();
 
     // Form data
     const [formData, setFormData] = useState({
@@ -79,7 +79,7 @@ const EditEmployee = () => {
             setReportingManagers(managersRes.data);
         } catch (error) {
             console.error('Error fetching dropdown data:', error);
-            showSnackbar('Failed to load dropdown data', 'error');
+            showToast('Failed to load dropdown data', 'error');
         }
     };
 
@@ -96,23 +96,19 @@ const EditEmployee = () => {
             const response = await axios.put(`http://localhost:8000/api/employees/${id}`, formData);
             
             if (response.data.success) {
-                showSnackbar('Employee updated successfully!');
+                showToast('Employee updated successfully!', 'success');
                 setTimeout(() => {
                     navigate('/admin/people');
                 }, 1500);
             } else {
-                showSnackbar('Failed to update employee', 'error');
+                showToast('Failed to update employee', 'error');
             }
         } catch (error) {
             console.error('Error updating employee:', error);
-            showSnackbar('Failed to update employee', 'error');
+            showToast('Failed to update employee', 'error');
         } finally {
             setLoading(false);
         }
-    };
-
-    const showSnackbar = (message, severity = 'success') => {
-        setSnackbar({ open: true, message, severity });
     };
 
     if (!initialEmployee) {
@@ -321,16 +317,6 @@ const EditEmployee = () => {
                     </Paper>
                 </Container>
             </div>
-
-            <Snackbar
-                open={snackbar.open}
-                autoHideDuration={3000}
-                onClose={() => setSnackbar({ ...snackbar, open: false })}
-            >
-                <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} variant="filled">
-                    {snackbar.message}
-                </Alert>
-            </Snackbar>
         </>
     );
 };

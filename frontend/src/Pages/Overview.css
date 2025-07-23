@@ -52,17 +52,27 @@
 
 .box {
   display: flex;
-  gap: 32px;
+  gap: 24px;
   flex-wrap: wrap;
+  align-items: flex-start;
 }
 
 .statistic {
   background: #f5f6fa;
   border-radius: 14px;
-  padding: 24px;
-  flex: 2;
-  min-width: 350px;
+  padding: 32px;
+  flex: 1;
+  min-width: 800px;
   box-shadow: 0 2px 8px rgba(148,25,54,0.08);
+  height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.statistic canvas {
+  max-height: 450px !important;
+  max-width: 100% !important;
 }
 
 .leaveApplication {
@@ -73,6 +83,155 @@
   min-width: 300px;
   box-shadow: 0 2px 8px rgba(148,25,54,0.08);
   margin-left: 0;
+}
+
+.notification-box {
+  background: #f5f6fa;
+  border-radius: 14px;
+  padding: 24px;
+  flex: 0 0 320px;
+  min-width: 320px;
+  max-width: 320px;
+  box-shadow: 0 2px 8px rgba(148,25,54,0.08);
+  margin-left: 0;
+  height: 500px;
+  overflow-y: auto;
+}
+
+.notification-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid rgba(148,25,54,0.1);
+}
+
+.notification-icon {
+  color: #941936;
+  font-size: 1.5rem;
+}
+
+.notification-header h3 {
+  margin: 0;
+  color: #222;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.notification-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.no-notifications {
+  text-align: center;
+  color: #888;
+  font-style: italic;
+  margin: 20px 0;
+}
+
+.notification-item {
+  background: #fff;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(148,25,54,0.06);
+  transition: box-shadow 0.2s;
+}
+
+.notification-item:hover {
+  box-shadow: 0 2px 8px rgba(148,25,54,0.1);
+}
+
+.notification-user {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.user-icon {
+  color: #941936;
+  font-size: 1.2rem;
+  margin-top: 2px;
+}
+
+.user-info h4 {
+  margin: 0 0 4px 0;
+  color: #222;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.user-info p {
+  margin: 0 0 4px 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.request-date {
+  color: #888;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.notification-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.notification-status.pending {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.notification-status-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.status-icon {
+  font-size: 1rem;
+}
+
+.status-icon.approved {
+  color: #28a745;
+}
+
+.status-icon.rejected {
+  color: #dc3545;
+}
+
+.status-icon.pending {
+  color: #ffc107;
+}
+
+.notification-status.approved {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.notification-status.rejected {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.request-time {
+  color: #666;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: block;
+  margin-top: 2px;
 }
 
 .leaveApplication p {
@@ -151,9 +310,20 @@
     gap: 16px;
   }
   
-  .statistic,
-  .leaveApplication {
+  .statistic {
     flex: 1 1 100%;
     min-width: auto;
+  }
+  
+  .leaveApplication,
+  .notification-box {
+    flex: 1 1 100%;
+    min-width: auto;
+    max-width: none;
+  }
+  
+  .notification-box {
+    height: auto;
+    max-height: 400px;
   }
 } 

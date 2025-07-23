@@ -6,390 +6,220 @@ import {
   Grid,
   TextField,
   Button,
+  Avatar,
   Card,
   CardContent,
-  Switch,
-  FormControlLabel,
   Divider,
-  Alert,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  ListItemSecondaryAction
+  Chip,
+  Alert
 } from '@mui/material';
 import {
-  Notifications,
-  Security,
-  Language,
-  Palette,
+  Edit as EditIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon,
+  Person,
   Email,
-  Lock,
-  Visibility,
-  VisibilityOff
+  Phone,
+  LocationOn
 } from '@mui/icons-material';
 import EmpRMNav from '../../navbars/EmpRMNav';
+import { useToast } from '../../components/ToastProvider';
 
 const SettingsRM = () => {
-  const [settings, setSettings] = useState({
-    emailNotifications: true,
-    pushNotifications: false,
-    leaveReminders: true,
-    darkMode: false,
-    language: 'English',
-    timezone: 'Asia/Colombo'
+  const [profile, setProfile] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    address: '',
+    employeeId: '',
+    username: '',
+    role: ''
   });
+  const [isEditing, setIsEditing] = useState(false);
+  const [originalProfile, setOriginalProfile] = useState({});
+  const { showToast } = useToast();
+  const dashboardName = 'Settings RM';
 
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
+  useEffect(() => {
+    // Get employee data from localStorage
+    const employee = JSON.parse(localStorage.getItem('employee') || '{}');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const profileData = {
+      firstName: employee.FirstName || '',
+      lastName: employee.LastName || '',
+      email: user.email || 'Not Provided',
+      phone: (employee.contactInformation?.PhoneNumber || 'Not Provided'),
+      address: (employee.contactInformation?.Address || 'Not Provided'),
+      employeeId: employee.EmployeeID || '',
+      username: user.username || 'Not Provided',
+      role: employee.role?.RoleName || ''
+    };
+    setProfile(profileData);
+    setOriginalProfile(profileData);
+    document.title = 'ICST | Settings RM';
+  }, []);
 
-  const [showPasswords, setShowPasswords] = useState({
-    current: false,
-    new: false,
-    confirm: false
-  });
+  const handleEdit = () => {
+    setIsEditing(true);
+  };
 
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const handleSave = async () => {
+    showToast('Profile updated successfully!', 'success');
+    setOriginalProfile(profile);
+    setIsEditing(false);
+  };
 
-  const handleSettingChange = (setting) => (event) => {
-    setSettings(prev => ({
+  const handleCancel = () => {
+    setProfile(originalProfile);
+    setIsEditing(false);
+  };
+
+  const handleInputChange = (field, value) => {
+    setProfile(prev => ({
       ...prev,
-      [setting]: event.target.checked
+      [field]: value
     }));
-  };
-
-  const handlePasswordChange = (field) => (event) => {
-    setPasswordForm(prev => ({
-      ...prev,
-      [field]: event.target.value
-    }));
-  };
-
-  const handlePasswordVisibility = (field) => () => {
-    setShowPasswords(prev => ({
-      ...prev,
-      [field]: !prev[field]
-    }));
-  };
-
-  const handlePasswordUpdate = async (e) => {
-    e.preventDefault();
-    
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setMessage({
-        type: 'error',
-        text: 'New passwords do not match!'
-      });
-      return;
-    }
-
-    if (passwordForm.newPassword.length < 6) {
-      setMessage({
-        type: 'error',
-        text: 'Password must be at least 6 characters long!'
-      });
-      return;
-    }
-
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setMessage({
-        type: 'success',
-        text: 'Password updated successfully!'
-      });
-      
-      setPasswordForm({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      });
-    } catch (error) {
-      setMessage({
-        type: 'error',
-        text: 'Failed to update password. Please try again.'
-      });
-    }
-  };
-
-  const handleSaveSettings = async () => {
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setMessage({
-        type: 'success',
-        text: 'Settings saved successfully!'
-      });
-    } catch (error) {
-      setMessage({
-        type: 'error',
-        text: 'Failed to save settings. Please try again.'
-      });
-    }
   };
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
       <EmpRMNav />
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          mt: 8,
-          ml: { sm: '250px' }
-        }}
-      >
-        <Typography variant="h4" gutterBottom sx={{ color: '#333', mb: 3 }}>
-          Settings
-        </Typography>
-
-        {message.text && (
-          <Alert severity={message.type} sx={{ mb: 3 }}>
-            {message.text}
-          </Alert>
-        )}
-
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <Card>
+      <Box sx={{ flexGrow: 1, py: 8 }}>
+        <Box sx={{ maxWidth: 900, mx: 'auto', mb: 4, textAlign: 'center' }}>
+          <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: '#941936', mb: 4, textAlign: 'center' }}>
+            Settings RM
+          </Typography>
+          <Typography variant="body1" sx={{ color: '#64748b' }}>
+            Manage your personal and contact information below.
+          </Typography>
+        </Box>
+        <Grid container spacing={4} sx={{ maxWidth: 900, mx: 'auto' }}>
+          {/* Profile Card - Left Side */}
+          <Grid item xs={12} md={4}>
+            <Card sx={{ p: 3, textAlign: 'center', borderRadius: 3, boxShadow: '0 1px 6px rgba(166,5,21,0.15)', border: '2px solid #a60515' }}>
               <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Notifications sx={{ mr: 1, color: '#941936' }} />
-                  <Typography variant="h6" sx={{ color: '#941936' }}>
-                    Notification Settings
-                  </Typography>
-                </Box>
-                
-                <List>
-                  <ListItem>
-                    <ListItemIcon>
-                      <Email />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary="Email Notifications"
-                      secondary="Receive notifications via email"
-                    />
-                    <ListItemSecondaryAction>
-                      <Switch
-                        checked={settings.emailNotifications}
-                        onChange={handleSettingChange('emailNotifications')}
-                        color="primary"
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                  
-                  <ListItem>
-                    <ListItemIcon>
-                      <Notifications />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary="Push Notifications"
-                      secondary="Receive push notifications in browser"
-                    />
-                    <ListItemSecondaryAction>
-                      <Switch
-                        checked={settings.pushNotifications}
-                        onChange={handleSettingChange('pushNotifications')}
-                        color="primary"
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                  
-                  <ListItem>
-                    <ListItemIcon>
-                      <Notifications />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary="Leave Reminders"
-                      secondary="Get reminded about leave applications"
-                    />
-                    <ListItemSecondaryAction>
-                      <Switch
-                        checked={settings.leaveReminders}
-                        onChange={handleSettingChange('leaveReminders')}
-                        color="primary"
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                </List>
-              </CardContent>
-            </Card>
-
-            <Card sx={{ mt: 2 }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Palette sx={{ mr: 1, color: '#941936' }} />
-                  <Typography variant="h6" sx={{ color: '#941936' }}>
-                    Appearance
-                  </Typography>
-                </Box>
-                
-                <List>
-                  <ListItem>
-                    <ListItemIcon>
-                      <Palette />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary="Dark Mode"
-                      secondary="Use dark theme"
-                    />
-                    <ListItemSecondaryAction>
-                      <Switch
-                        checked={settings.darkMode}
-                        onChange={handleSettingChange('darkMode')}
-                        color="primary"
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                </List>
+                <Avatar
+                  sx={{
+                    width: 110,
+                    height: 110,
+                    mx: 'auto',
+                    mb: 2,
+                    bgcolor: 'linear-gradient(135deg, #a60515 0%, #941936 100%)',
+                    fontSize: '3rem'
+                  }}
+                >
+                  {profile.firstName.charAt(0)}{profile.lastName.charAt(0)}
+                </Avatar>
+                <Typography variant="h5" sx={{ fontWeight: 700, color: '#1e293b', mb: 1 }}>
+                  {profile.firstName} {profile.lastName}
+                </Typography>
+                <Chip label={profile.role || 'Reporting Manager'} sx={{ mb: 2, bgcolor: '#a60515', color: 'white', fontWeight: 600 }} />
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  Employee ID
+                </Typography>
+                <Typography variant="h6" sx={{ mb: 1 }}>{profile.employeeId}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  Username
+                </Typography>
+                <Typography variant="h6">{profile.username}</Typography>
               </CardContent>
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Security sx={{ mr: 1, color: '#941936' }} />
-                  <Typography variant="h6" sx={{ color: '#941936' }}>
-                    Security Settings
-                  </Typography>
-                </Box>
-
-                <form onSubmit={handlePasswordUpdate}>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12}>
-                      <TextField
-                        fullWidth
-                        label="Current Password"
-                        type={showPasswords.current ? 'text' : 'password'}
-                        value={passwordForm.currentPassword}
-                        onChange={handlePasswordChange('currentPassword')}
-                        required
-                        InputProps={{
-                          endAdornment: (
-                            <IconButton
-                              onClick={handlePasswordVisibility('current')}
-                              edge="end"
-                            >
-                              {showPasswords.current ? <VisibilityOff /> : <Visibility />}
-                            </IconButton>
-                          )
-                        }}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <TextField
-                        fullWidth
-                        label="New Password"
-                        type={showPasswords.new ? 'text' : 'password'}
-                        value={passwordForm.newPassword}
-                        onChange={handlePasswordChange('newPassword')}
-                        required
-                        InputProps={{
-                          endAdornment: (
-                            <IconButton
-                              onClick={handlePasswordVisibility('new')}
-                              edge="end"
-                            >
-                              {showPasswords.new ? <VisibilityOff /> : <Visibility />}
-                            </IconButton>
-                          )
-                        }}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <TextField
-                        fullWidth
-                        label="Confirm New Password"
-                        type={showPasswords.confirm ? 'text' : 'password'}
-                        value={passwordForm.confirmPassword}
-                        onChange={handlePasswordChange('confirmPassword')}
-                        required
-                        InputProps={{
-                          endAdornment: (
-                            <IconButton
-                              onClick={handlePasswordVisibility('confirm')}
-                              edge="end"
-                            >
-                              {showPasswords.confirm ? <VisibilityOff /> : <Visibility />}
-                            </IconButton>
-                          )
-                        }}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <Button
-                        type="submit"
-                        variant="contained"
-                        fullWidth
-                        sx={{
-                          bgcolor: '#941936',
-                          '&:hover': { bgcolor: '#7a0f2b' }
-                        }}
-                      >
-                        Update Password
-                      </Button>
-                    </Grid>
-                  </Grid>
-                </form>
-              </CardContent>
-            </Card>
-
-            <Card sx={{ mt: 2 }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Language sx={{ mr: 1, color: '#941936' }} />
-                  <Typography variant="h6" sx={{ color: '#941936' }}>
-                    Regional Settings
-                  </Typography>
-                </Box>
-                
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Language"
-                      value={settings.language}
-                      disabled
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Timezone"
-                      value={settings.timezone}
-                      disabled
-                    />
-                  </Grid>
+          {/* Editable Info - Right Side */}
+          <Grid item xs={12} md={8}>
+            <Paper sx={{ p: 4, borderRadius: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h5" sx={{ color: '#941936', fontWeight: 700 }}>Personal & Contact Information</Typography>
+                {!isEditing ? (
+                  <Button variant="outlined" startIcon={<EditIcon />} onClick={handleEdit} sx={{ borderColor: '#a60515', color: '#a60515', fontWeight: 600, '&:hover': { borderColor: '#941936', color: '#941936' } }}>Edit</Button>
+                ) : (
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSave} sx={{ bgcolor: '#a60515', fontWeight: 600, '&:hover': { bgcolor: '#941936' } }}>Save</Button>
+                    <Button variant="outlined" startIcon={<CancelIcon />} onClick={handleCancel} sx={{ borderColor: '#a60515', color: '#a60515', fontWeight: 600, '&:hover': { borderColor: '#941936', color: '#941936' } }}>Cancel</Button>
+                  </Box>
+                )}
+              </Box>
+              <Grid container spacing={3}>
+                {/* Basic Info */}
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="First Name"
+                    value={profile.firstName}
+                    onChange={e => handleInputChange('firstName', e.target.value)}
+                    disabled={!isEditing}
+                    InputProps={{ startAdornment: <Person sx={{ mr: 1, color: '#666' }} /> }}
+                  />
                 </Grid>
-              </CardContent>
-            </Card>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Last Name"
+                    value={profile.lastName}
+                    onChange={e => handleInputChange('lastName', e.target.value)}
+                    disabled={!isEditing}
+                    InputProps={{ startAdornment: <Person sx={{ mr: 1, color: '#666' }} /> }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Email"
+                    value={profile.email}
+                    onChange={e => handleInputChange('email', e.target.value)}
+                    disabled={!isEditing}
+                    InputProps={{ startAdornment: <Email sx={{ mr: 1, color: '#666' }} /> }}
+                    placeholder="Not Provided"
+                  />
+                </Grid>
+                {/* Read-only fields */}
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Employee ID"
+                    value={profile.employeeId}
+                    disabled
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Username"
+                    value={profile.username}
+                    disabled
+                  />
+                </Grid>
+                {/* Contact Info */}
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Phone"
+                    value={profile.phone}
+                    onChange={e => handleInputChange('phone', e.target.value)}
+                    disabled={!isEditing}
+                    InputProps={{ startAdornment: <Phone sx={{ mr: 1, color: '#666' }} /> }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Address"
+                    value={profile.address}
+                    onChange={e => handleInputChange('address', e.target.value)}
+                    disabled={!isEditing}
+                    multiline
+                    rows={2}
+                    InputProps={{ startAdornment: <LocationOn sx={{ mr: 1, color: '#666', mt: 1 }} /> }}
+                    placeholder="Not Provided"
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
           </Grid>
         </Grid>
-
-        <Box sx={{ mt: 3, textAlign: 'center' }}>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={handleSaveSettings}
-            sx={{
-              bgcolor: '#941936',
-              '&:hover': { bgcolor: '#7a0f2b' }
-            }}
-          >
-            Save All Settings
-          </Button>
-        </Box>
       </Box>
     </Box>
   );

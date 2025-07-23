@@ -11,13 +11,18 @@ import Employee from './Pages/Employee/Employee';
 import EmployeeRM from './Pages/EmployeeRM/EmployeeRM';
 import LeaveApply from './Pages/Employee/LeaveApply';
 import Notifications from './Pages/Employee/Notifications';
-import Profile from './Pages/Employee/Profile';
+import Attendance from './Pages/Admin/Manage/Attendance';
+import Timeoff from './Pages/Admin/Manage/TimeOff';
 import Settings from './Pages/Employee/Settings';
 import LeaveApplyRM from './Pages/EmployeeRM/LeaveApplyRM';
 import NotificationsRM from './Pages/EmployeeRM/NotificationsRM';
-import ProfileRM from './Pages/EmployeeRM/ProfileRM';
 import SettingsRM from './Pages/EmployeeRM/SettingsRM';
-import LeaveRequestRM from './Pages/EmployeeRM/Leaverequests';
+import LeaveRequests from './Pages/EmployeeRM/Leaverequests';
+import Calendar from './Pages/Employee/Calendar';
+import { ToastProvider } from './components/ToastProvider';
+import RMCalendar from './Pages/EmployeeRM/RMCalendar';
+import Profile from './Pages/Admin/Settings/Profile';
+
 
 // Main App Component
 function App() {
@@ -46,56 +51,57 @@ function App() {
   }, []);
 
   return (
-    <Routes>
-      <Route path="/" element={<Login />} />
-      
-      {/* Admin/HR Routes */}
-      <Route path="/overview" element={<Overview />} />
-      <Route path="/onboard" element={<Onboard />} />
-      <Route path="/people" element={<People />} />
-      <Route path="/edit-employee/:id" element={<EditEmployee />} />
-      <Route path="/leavesettings" element={<LeaveSettings />} />
-      <Route path="/holidaycalendar" element={<HolidayCalendar />} />
+    <ToastProvider>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        
+        {/* Admin/HR Routes */}
+        <Route path="/overview" element={<Overview />} />
+        <Route path="/onboard" element={<Onboard />} />
+        <Route path="/people" element={<People />} />
+        <Route path="/attendance" element={<Attendance />} />
+        <Route path="/timeOff" element={<Timeoff />} />
+        <Route path="/edit-employee/:id" element={<EditEmployee />} />
+        <Route path="/leavesettings" element={<LeaveSettings />} />
+        <Route path="/holidaycalendar" element={<HolidayCalendar />} />
+        <Route path="/profile" element={<Profile />} />
 
-      {/* Employee Routes */}
-      <Route path="/employee" element={<Employee />} />
-      <Route path="/leave-apply" element={<LeaveApply />} />
-      <Route path="/notifications" element={<Notifications />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/settings" element={<Settings />} />
+        {/* Employee Routes */}
+        <Route path="/employee" element={<Employee />} />
+        <Route path="/leave-apply" element={<LeaveApply />} />
+        <Route path="/notifications" element={<Notifications />} />
+        <Route path="/calendar" element={<Calendar />} />
+        <Route path="/settings" element={<Settings />} />
 
  {/* Employee RM Routes */}
-      <Route path="/employeerm" element={<EmployeeRM />} />
-      <Route path="/leave-apply-rm" element={<LeaveApplyRM />} />
-      <Route path="/leave-request-rm" element={<LeaveRequestRM />} />
-      <Route path="/notifications-rm" element={<NotificationsRM />} />
-      <Route path="/profile-rm" element={<ProfileRM />} />
-      <Route path="/settings-rm" element={<SettingsRM />} />
+        <Route path="/employeerm" element={<EmployeeRM />} />
+        <Route path="/leave-apply-rm" element={<LeaveApplyRM />} />
+        <Route path="/leave-request-rm" element={<LeaveRequests />} />
+        <Route path="/notifications-rm" element={<NotificationsRM />} />
+        <Route path="/settings-rm" element={<SettingsRM />} />
+        <Route path="/calendar-rm" element={<RMCalendar />} />
 
 
 
-
-
-
-
-      {/* Default redirect for authenticated users */}
-      <Route 
-        path="*" 
-        element={
-          isAuthenticated ? (
-            userRole === 'admin' || userRole === 'hr' ? (
-              <Navigate to="/overview" replace />
-            ) : userRole === 'rm' ? (
-              <Navigate to="/employeerm" replace />
+        {/* Default redirect for authenticated users */}
+        <Route 
+          path="*" 
+          element={
+            isAuthenticated ? (
+              userRole === 'admin' || userRole === 'hr' ? (
+                <Navigate to="/overview" replace />
+              ) : userRole === 'rm' ? (
+                <Navigate to="/employeerm" replace />
+              ) : (
+                <Navigate to="/employee" replace />
+              )
             ) : (
-              <Navigate to="/employee" replace />
+              <Navigate to="/" replace />
             )
-          ) : (
-            <Navigate to="/" replace />
-          )
-        } 
-      />
-    </Routes>
+          } 
+        />
+      </Routes>
+    </ToastProvider>
   );
 }
 
